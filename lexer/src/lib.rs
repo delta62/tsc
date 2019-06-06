@@ -123,9 +123,7 @@ where I: Iterator<Item = char>,
     fn digit(&mut self) -> Result<TokenType, LexError> {
         let mut s = String::new();
 
-        // is digit 0
-        // is the next thing x
-        // next thing should hex digits
+        // hexadecimal part
         match self.stream.peek() {
             Some('0') => {
                 s.push('0');
@@ -150,6 +148,36 @@ where I: Iterator<Item = char>,
                     Some(_) => (),
                     None => ()
                 }
+            },
+            None => return Err(self.unexpected_eof()),
+            Some(_) => ()
+        }
+
+        // octal part
+        match self.peek() {
+            Some('0') => {
+                s.push('0');
+                self.skip();
+                match self.peek() {
+                    Some(c) if c == 'o' || c == 'O' => {
+                        self.skip();
+                        s.push(c);
+                        match self.next_char() {
+                            // if is a digit between 0 and 7
+                            Some(c) if is_ascii_octaldigit(c) => {
+                                s.push(c);
+                            },
+                            // otherwise return an error
+                            Some(c) => return Err(self.unexpected_char(c)), 
+                            None => return Err(self.unexpected_eof())
+                        }
+                        self.push_while(&mut s, |c| is_ascii_octaldigit(c))
+                    },
+                    Some(_) => (),
+                    None => ()
+                }
+
+                return Ok(TokenType::Number(s));
             },
             None => return Err(self.unexpected_eof()),
             Some(_) => ()
