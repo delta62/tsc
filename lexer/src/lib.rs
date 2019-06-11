@@ -17,6 +17,7 @@ use self::charclass::{
     is_id_continue,
     is_line_terminator,
     is_ws,
+    is_ascii_octaldigit,
 };
 
 pub enum LexGoal {
@@ -154,15 +155,15 @@ where I: Iterator<Item = char>,
         }
 
         // octal part
-        match self.peek() {
+        match self.stream.peek() {
             Some('0') => {
                 s.push('0');
-                self.skip();
-                match self.peek() {
+                self.stream.skip_char();
+                match self.stream.peek() {
                     Some(c) if c == 'o' || c == 'O' => {
-                        self.skip();
+                        self.stream.skip_char();
                         s.push(c);
-                        match self.next_char() {
+                        match self.stream.next() {
                             // if is a digit between 0 and 7
                             Some(c) if is_ascii_octaldigit(c) => {
                                 s.push(c);
@@ -171,7 +172,7 @@ where I: Iterator<Item = char>,
                             Some(c) => return Err(self.unexpected_char(c)), 
                             None => return Err(self.unexpected_eof())
                         }
-                        self.push_while(&mut s, |c| is_ascii_octaldigit(c))
+                        self.stream.push_while(&mut s, |c| is_ascii_octaldigit(c))
                     },
                     Some(_) => (),
                     None => ()

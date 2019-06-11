@@ -48,3 +48,11 @@ pub fn is_escapable_char(c: char) -> bool {
         _   => true,
     }
 }
+
+pub fn is_ascii_octaldigit(c: char) -> bool {
+    const RADIX:u32 = 8;
+    match c {
+        c if c.to_digit(RADIX) < Some(8) => true,
+        _ => false
+    }
+}
