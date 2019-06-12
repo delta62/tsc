@@ -907,7 +907,6 @@ mod tests {
     fn single_token(input: &str) -> Option<Result<Token, LexError>> {
         let mut lexer = Lexer::new(input.chars());
         let ret = lexer.next();
-        print!("{:?}", lexer.next());
         assert!(lexer.next().is_none(), "lexed more than one token");
         ret
     }
