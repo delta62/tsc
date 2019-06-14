@@ -162,7 +162,7 @@ where I: Iterator<Item = char>,
                         }
                         self.stream.push_while(&mut s, |c| is_ascii_octaldigit(c));
                         return Ok(TokenType::Number(s))
-                    }
+                    },
                     Some(_) => (),
                     None => ()
                 }
