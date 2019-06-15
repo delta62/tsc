@@ -50,8 +50,9 @@ pub fn is_escapable_char(c: char) -> bool {
 }
 
 pub fn is_ascii_octaldigit(c: char) -> bool {
-    match c.to_digit(8) {
-        Some(_) => true,
-        None => false
-    }
+    c.to_digit(8).is_some()
+}
+
+pub fn is_ascii_binarydigit(c: char) -> bool {
+    c.to_digit(2).is_some()
 }
