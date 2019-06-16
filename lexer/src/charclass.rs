@@ -48,3 +48,11 @@ pub fn is_escapable_char(c: char) -> bool {
         _   => true,
     }
 }
+
+pub fn is_ascii_octaldigit(c: char) -> bool {
+    c.to_digit(8).is_some()
+}
+
+pub fn is_ascii_binarydigit(c: char) -> bool {
+    c.to_digit(2).is_some()
+}
