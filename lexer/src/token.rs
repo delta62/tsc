@@ -30,6 +30,118 @@ pub struct Token {
 }
 
 #[derive(Debug)]
+pub enum ReservedWord {
+    // Keyword
+    Await,
+    Break,
+    Case,
+    Catch,
+    Class,
+    Const,
+    Continue,
+    Debugger,
+    Default,
+    Delete,
+    Do,
+    Else,
+    Export,
+    Extends,
+    Finally,
+    For,
+    Function,
+    If,
+    Import,
+    In,
+    InstanceOf,
+    New,
+    Return,
+    Super,
+    Switch,
+    This,
+    Throw,
+    Try,
+    TypeOf,
+    Var,
+    Void,
+    While,
+    With,
+    Yield,
+
+    // FutureReservedWord
+    Enum,
+    Implements,
+    Interface,
+    Package,
+    Private,
+    Protected,
+    Public,
+
+    // NullLiteral
+    Null,
+    // BooleanLiteral
+    True,
+    False,
+}
+
+pub fn identifier(text: String) -> TokenType {
+    let keyword = match text.as_ref() {
+        // Keyword
+        "await"      => Some(ReservedWord::Await),
+        "break"      => Some(ReservedWord::Break),
+        "case"       => Some(ReservedWord::Case),
+        "catch"      => Some(ReservedWord::Catch),
+        "class"      => Some(ReservedWord::Class),
+        "const"      => Some(ReservedWord::Const),
+        "continue"   => Some(ReservedWord::Continue),
+        "debugger"   => Some(ReservedWord::Debugger),
+        "default"    => Some(ReservedWord::Default),
+        "delete"     => Some(ReservedWord::Delete),
+        "do"         => Some(ReservedWord::Do),
+        "else"       => Some(ReservedWord::Else),
+        "export"     => Some(ReservedWord::Export),
+        "extends"    => Some(ReservedWord::Extends),
+        "finally"    => Some(ReservedWord::Finally),
+        "for"        => Some(ReservedWord::For),
+        "function"   => Some(ReservedWord::Function),
+        "if"         => Some(ReservedWord::If),
+        "import"     => Some(ReservedWord::Import),
+        "in"         => Some(ReservedWord::In),
+        "instanceof" => Some(ReservedWord::InstanceOf),
+        "new"        => Some(ReservedWord::New),
+        "return"     => Some(ReservedWord::Return),
+        "super"      => Some(ReservedWord::Super),
+        "switch"     => Some(ReservedWord::Switch),
+        "this"       => Some(ReservedWord::This),
+        "throw"      => Some(ReservedWord::Throw),
+        "try"        => Some(ReservedWord::Try),
+        "typeof"     => Some(ReservedWord::TypeOf),
+        "var"        => Some(ReservedWord::Var),
+        "void"       => Some(ReservedWord::Void),
+        "while"      => Some(ReservedWord::While),
+        "with"       => Some(ReservedWord::With),
+        "yield"      => Some(ReservedWord::Yield),
+
+        // FutureReservedWord
+        "enum"       => Some(ReservedWord::Enum),
+        "implements" => Some(ReservedWord::Implements),
+        "interface"  => Some(ReservedWord::Interface),
+        "package"    => Some(ReservedWord::Package),
+        "private"    => Some(ReservedWord::Private),
+        "protected"  => Some(ReservedWord::Protected),
+        "public"     => Some(ReservedWord::Public),
+
+        // NullLiteral
+        "null"       => Some(ReservedWord::Null),
+        // BooleanLiteral
+        "true"       => Some(ReservedWord::True),
+        "false"      => Some(ReservedWord::False),
+        _            => None,
+    };
+
+    TokenType::Identifier(text, keyword)
+}
+
+#[derive(Debug)]
 pub enum TokenType {
     Arrow,
     Bang,
@@ -50,7 +162,7 @@ pub enum TokenType {
     Equals,
     GreaterThan,
     GreaterThanEqualTo,
-    Identifier(String),
+    Identifier(String, Option<ReservedWord>),
     Increment,
     LeftBrace,
     LeftBracket,
@@ -115,7 +227,7 @@ impl fmt::Display for TokenType {
             TokenType::Equals => write!(f, "="),
             TokenType::GreaterThanEqualTo => write!(f, ">="),
             TokenType::GreaterThan => write!(f, ">"),
-            TokenType::Identifier(s) => write!(f, "{}", s),
+            TokenType::Identifier(s, _) => write!(f, "{}", s),
             TokenType::Increment => write!(f, "++"),
             TokenType::LeftBrace => write!(f, "{{"),
             TokenType::LeftBracket => write!(f, "["),

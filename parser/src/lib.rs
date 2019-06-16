@@ -1,23 +1,47 @@
 extern crate lexer;
 
 use lexer::Lexer;
+use lexer::Token;
+
+pub enum ParseError {
+    UnexpectedToken(Token),
+}
 
 pub enum Node {
-    Boolean,
+    Declaration,
+    Script(Vec<Node>),
+    Statement,
 }
 
 pub struct Parser<I>
 where I: Iterator<Item = char> {
-    _lexer: Lexer<I>,
+    lexer: Lexer<I>,
 }
 
 impl<I> Parser<I>
 where I: Iterator<Item = char> {
     pub fn new(lexer: Lexer<I>) -> Parser<I> {
-        Parser { _lexer: lexer }
+        Parser { lexer: lexer }
     }
 
-    pub fn parse() -> Node {
-        Node::Boolean
+    pub fn parse(&mut self) -> Result<Node, ParseError> {
+        self.script_body()
+    }
+
+    fn script_body(&mut self) -> Result<Node, ParseError> {
+        let body = Vec::new();
+        loop {
+            match self.lexer.next() {
+                Some(Ok(t)) => {
+                    match t {
+                        _ => return Err(ParseError::UnexpectedToken(t))
+                    }
+                },
+                Some(Err(_)) |
+                None => break
+            }
+        }
+
+        Ok(Node::Script(body))
     }
 }

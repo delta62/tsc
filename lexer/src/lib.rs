@@ -8,7 +8,7 @@ mod token;
 
 use self::location::Location;
 use self::lexstream::LexStream;
-use self::token::{CommentStyle,QuoteStyle,Token,TokenType};
+pub use self::token::{CommentStyle,QuoteStyle,Token,TokenType,identifier};
 use self::lexerror::LexError;
 
 use self::charclass::{
@@ -527,7 +527,7 @@ where I: Iterator<Item = char>,
         }
 
         s.shrink_to_fit();
-        Ok(Token::new(loc, TokenType::Identifier(s)))
+        Ok(Token::new(loc, identifier(s)))
     }
 
     fn unicode_escape(&mut self) -> Result<String, LexError> {
