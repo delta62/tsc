@@ -1,6 +1,6 @@
 extern crate lexer;
 
-use lexer::{Lexer,Token,TokenType};
+use lexer::{Lexer,ReservedWord,Token,TokenType};
 
 pub enum ParseError {
     UnexpectedToken,
@@ -23,35 +23,46 @@ where I: Iterator<Item = char> {
         Parser { lexer: lexer }
     }
 
-    pub fn parse(&mut self) -> Result<Node, ParseError> {
-        self.script()
+    pub fn script(&mut self) -> Result<Node, ParseError> {
+        let body = self.statement_list();
+        body.map(|list| Node::Script(list))
     }
 
-    fn script(&mut self) -> Result<Node, ParseError> {
-        let mut body = Vec::new();
+    fn statement_list(&mut self) -> Result<Vec<Node>, ParseError> {
+        let stmts = Vec::new();
         loop {
-            match self.lexer.next() {
-                Some(Ok(Token { column, line, typ })) => {
-                    match typ {
-                        // LexicalDeclaration
-                        TokenType::Identifier(ref text, None) if text == "let" || text == "const" => {
-                            let decl = self.declaration();
-                            match decl {
-                                Ok(n) => body.push(n),
-                                Err(e) => return Err(e),
-                            }
-                        },
-                        _ => return Err(ParseError::UnexpectedToken)
+            let next = self.lexer.next();
+            match &next {
+                Some(Ok(token)) => {
+                    if is_statement_start(&token) {
+
+                    } else if is_declaration_start(&token) {
+
+                    } else {
+                        break
                     }
                 },
-                Some(Err(_)) | None => break
+                Some(Err(_)) => return Err(ParseError::UnexpectedToken),
+                None => break,
+            }
+
+            if next.is_none() {
+                break
             }
         }
-
-        Ok(Node::Script(body))
+        Ok(stmts)
     }
+}
 
-    fn declaration(&mut self) -> Result<Node, ParseError> {
-        Ok(Node::Declaration)
+fn is_statement_start(token: &Token) -> bool {
+    match token.typ {
+        TokenType::LeftBrace
+        | TokenType::Identifier(_, Some(ReservedWord::Var))
+        | TokenType::Semicolon => true,
+        _ => false,
     }
+}
+
+fn is_declaration_start(_token: &Token) -> bool {
+    false
 }
