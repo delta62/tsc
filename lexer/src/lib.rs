@@ -8,7 +8,7 @@ mod token;
 
 use self::location::Location;
 use self::lexstream::LexStream;
-pub use self::token::{CommentStyle,QuoteStyle,ReservedWord,Token,TokenType,identifier};
+pub use self::token::{CommentStyle,QuoteStyle,ReservedWord,Token,TokenType,get_reserved_word,identifier};
 use self::lexerror::LexError;
 
 use self::charclass::{

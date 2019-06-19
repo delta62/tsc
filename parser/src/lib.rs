@@ -1,6 +1,6 @@
 extern crate lexer;
 
-use lexer::{Lexer,ReservedWord,Token,TokenType};
+use lexer::{Lexer,ReservedWord,Token,TokenType,get_reserved_word};
 
 pub enum ParseError {
     UnexpectedToken,
@@ -73,11 +73,28 @@ where I: Iterator<Item = char> {
     fn match_declaration(&mut self) -> Option<Result<Node, ParseError>> {
         self.lexer.next().map(|token| {
             token.map_err(|_| ParseError::UnexpectedToken)
-                .and_then(|token| self.let_declaration())
+                .and_then(|token| {
+                    match get_reserved_word(&token.typ) {
+                        Some(ReservedWord::Let) |
+                        Some(ReservedWord::Const)    => self.variable_declaration(),
+                        Some(ReservedWord::Async) |
+                        Some(ReservedWord::Function) => self.function_declaration(),
+                        Some(ReservedWord::Class)    => self.class_declaration(),
+                        _                            => Err(ParseError::UnexpectedToken),
+                    }
+                })
         })
     }
 
-    fn let_declaration(&mut self) -> Result<Node, ParseError> {
+    fn variable_declaration(&mut self) -> Result<Node, ParseError> {
+        Err(ParseError::UnexpectedToken)
+    }
+
+    fn function_declaration(&mut self) -> Result<Node, ParseError> {
+        Err(ParseError::UnexpectedToken)
+    }
+
+    fn class_declaration(&mut self) -> Result<Node, ParseError> {
         Err(ParseError::UnexpectedToken)
     }
 

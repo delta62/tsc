@@ -32,6 +32,7 @@ pub struct Token {
 #[derive(Debug)]
 pub enum ReservedWord {
     // Keyword
+    Async,
     Await,
     Break,
     Case,
@@ -53,6 +54,7 @@ pub enum ReservedWord {
     Import,
     In,
     InstanceOf,
+    Let,
     New,
     Return,
     Super,
@@ -86,6 +88,7 @@ pub enum ReservedWord {
 pub fn identifier(text: String) -> TokenType {
     let keyword = match text.as_ref() {
         // Keyword
+        "async"      => Some(ReservedWord::Async),
         "await"      => Some(ReservedWord::Await),
         "break"      => Some(ReservedWord::Break),
         "case"       => Some(ReservedWord::Case),
@@ -107,6 +110,7 @@ pub fn identifier(text: String) -> TokenType {
         "import"     => Some(ReservedWord::Import),
         "in"         => Some(ReservedWord::In),
         "instanceof" => Some(ReservedWord::InstanceOf),
+        "let"        => Some(ReservedWord::Let),
         "new"        => Some(ReservedWord::New),
         "return"     => Some(ReservedWord::Return),
         "super"      => Some(ReservedWord::Super),
@@ -139,6 +143,13 @@ pub fn identifier(text: String) -> TokenType {
     };
 
     TokenType::Identifier(text, keyword)
+}
+
+pub fn get_reserved_word(identifier: &TokenType) -> Option<&ReservedWord> {
+    match identifier {
+        TokenType::Identifier(_, Some(kw)) => Some(kw),
+        _                                  => None,
+    }
 }
 
 #[derive(Debug)]
