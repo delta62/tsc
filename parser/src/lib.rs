@@ -1,6 +1,6 @@
 extern crate lexer;
 
-use lexer::{Lexer,ReservedWord,Token,TokenType,get_reserved_word};
+use lexer::{Lexer,ReservedWord,Token,TokenType};
 
 pub enum ParseError {
     UnexpectedToken,
@@ -34,18 +34,10 @@ where I: Iterator<Item = char> {
             let next = self.lexer.next();
             match &next {
                 Some(Ok(token)) => {
-                    let s = self.match_statement();
-                    match s {
-                        Some(Ok(s)) => stmts.push(s),
-                        Some(Err(_)) => return Err(ParseError::UnexpectedToken),
-                        None => {
-                            let d = self.match_declaration();
-                            match d {
-                                Some(Ok(d)) => stmts.push(d),
-                                Some(Err(_)) => return Err(ParseError::UnexpectedToken),
-                                None => break
-                            }
-                        }
+                    let result = self.declaration_or_statement();
+                    match result {
+                        Ok(x) => stmts.push(x),
+                        Err(e) => return Err(e),
                     }
                 },
                 Some(Err(_)) => return Err(ParseError::UnexpectedToken),
@@ -59,31 +51,21 @@ where I: Iterator<Item = char> {
         Ok(stmts)
     }
 
-    fn match_statement(&mut self) -> Option<Result<Node, ParseError>> {
-        match self.lexer.next() {
-            Some(Ok(Token { typ: TokenType::LeftBrace, .. })) => {
-                Some(self.block())
-            },
-            Some(Err(_)) => return Some(Err(ParseError::UnexpectedToken)),
-            Some(_) => return Some(Err(ParseError::UnexpectedToken)),
-            None => None,
-        }
-    }
-
-    fn match_declaration(&mut self) -> Option<Result<Node, ParseError>> {
-        self.lexer.next().map(|token| {
-            token.map_err(|_| ParseError::UnexpectedToken)
-                .and_then(|token| {
-                    match get_reserved_word(&token.typ) {
-                        Some(ReservedWord::Let) |
-                        Some(ReservedWord::Const)    => self.variable_declaration(),
-                        Some(ReservedWord::Async) |
-                        Some(ReservedWord::Function) => self.function_declaration(),
-                        Some(ReservedWord::Class)    => self.class_declaration(),
-                        _                            => Err(ParseError::UnexpectedToken),
-                    }
-                })
-        })
+    fn declaration_or_statement(&mut self) -> Result<Node, ParseError> {
+        let token = self.lexer.next().unwrap();
+        token
+            .map_err(|_| ParseError::UnexpectedToken)
+            .and_then(|token| {
+                match &token {
+                    // Declarations
+                    x if is_variable_declaration(x) => self.variable_declaration(),
+                    x if is_function_declaration(x) => self.function_declaration(),
+                    x if is_class_declaration(x)    => self.class_declaration(),
+                    // Statements
+                    // Other
+                    _                            => Err(ParseError::UnexpectedToken),
+                }
+            })
     }
 
     fn variable_declaration(&mut self) -> Result<Node, ParseError> {
@@ -100,5 +82,29 @@ where I: Iterator<Item = char> {
 
     fn block(&mut self) -> Result<Node, ParseError> {
         Err(ParseError::UnexpectedToken)
+    }
+}
+
+fn is_variable_declaration(token: &Token) -> bool {
+    match token.typ {
+        TokenType::Identifier(_, Some(ReservedWord::Let))
+        | TokenType::Identifier(_, Some(ReservedWord::Const))
+        | TokenType::Identifier(_, Some(ReservedWord::Var)) => true,
+        _ => false,
+    }
+}
+
+fn is_function_declaration(token: &Token) -> bool {
+    match token.typ {
+        TokenType::Identifier(_, Some(ReservedWord::Async))
+        | TokenType::Identifier(_, Some(ReservedWord::Function)) => true,
+        _ => false,
+    }
+}
+
+fn is_class_declaration(token: &Token) -> bool {
+    match token.typ {
+        TokenType::Identifier(_, Some(ReservedWord::Class)) => true,
+        _ => false,
     }
 }
