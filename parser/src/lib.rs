@@ -58,10 +58,13 @@ where I: Iterator<Item = char> {
             .and_then(|token| {
                 match &token {
                     // Declarations
-                    x if is_variable_declaration(x) => self.variable_declaration(),
-                    x if is_function_declaration(x) => self.function_declaration(),
-                    x if is_class_declaration(x)    => self.class_declaration(),
+                    x if is_variable_declaration(x)    => self.variable_declaration(),
+                    x if is_function_declaration(x)    => self.function_declaration(),
+                    x if is_class_declaration(x)       => self.class_declaration(),
                     // Statements
+                    x if is_variable_statement(x)      => self.variable_declaration(),
+                    x if x.typ == TokenType::LeftBrace => self.block(),
+                    x if x.typ == TokenType::Semicolon => self.empty_statement(),
                     // Other
                     _                            => Err(ParseError::UnexpectedToken),
                 }
@@ -80,6 +83,10 @@ where I: Iterator<Item = char> {
         Err(ParseError::UnexpectedToken)
     }
 
+    fn empty_statement(&mut self) -> Result<Node, ParseError> {
+        Ok(Node::Statement)
+    }
+
     fn block(&mut self) -> Result<Node, ParseError> {
         Err(ParseError::UnexpectedToken)
     }
@@ -88,8 +95,7 @@ where I: Iterator<Item = char> {
 fn is_variable_declaration(token: &Token) -> bool {
     match token.typ {
         TokenType::Identifier(_, Some(ReservedWord::Let))
-        | TokenType::Identifier(_, Some(ReservedWord::Const))
-        | TokenType::Identifier(_, Some(ReservedWord::Var)) => true,
+        | TokenType::Identifier(_, Some(ReservedWord::Const)) => true,
         _ => false,
     }
 }
@@ -105,6 +111,13 @@ fn is_function_declaration(token: &Token) -> bool {
 fn is_class_declaration(token: &Token) -> bool {
     match token.typ {
         TokenType::Identifier(_, Some(ReservedWord::Class)) => true,
+        _ => false,
+    }
+}
+
+fn is_variable_statement(token: &Token) -> bool {
+    match token.typ {
+        TokenType::Identifier(_, Some(ReservedWord::Var)) => true,
         _ => false,
     }
 }

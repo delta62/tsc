@@ -16,7 +16,7 @@ impl fmt::Display for QuoteStyle {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug,PartialEq)]
 pub enum CommentStyle {
     SingleLine,
     MultiLine,
@@ -29,7 +29,7 @@ pub struct Token {
     pub typ: TokenType,
 }
 
-#[derive(Debug)]
+#[derive(Debug,PartialEq)]
 pub enum ReservedWord {
     // Keyword
     Async,
@@ -152,7 +152,7 @@ pub fn get_reserved_word(identifier: &TokenType) -> Option<&ReservedWord> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug,PartialEq)]
 pub enum TokenType {
     Arrow,
     Bang,
