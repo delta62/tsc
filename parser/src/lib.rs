@@ -58,13 +58,24 @@ where I: Iterator<Item = char> {
             .and_then(|token| {
                 match &token {
                     // Declarations
-                    x if is_variable_declaration(x)    => self.variable_declaration(),
-                    x if is_function_declaration(x)    => self.function_declaration(),
-                    x if is_class_declaration(x)       => self.class_declaration(),
+                    x if is_variable_declaration(x)                   => self.variable_declaration(),
+                    x if is_function_declaration(x)                   => self.function_declaration(),
+                    x if is_class_declaration(x)                      => self.class_declaration(),
                     // Statements
-                    x if is_variable_statement(x)      => self.variable_declaration(),
-                    x if x.typ == TokenType::LeftBrace => self.block(),
-                    x if x.typ == TokenType::Semicolon => self.empty_statement(),
+                    x if is_variable_statement(x)                     => self.variable_declaration(),
+                    x if x.typ == TokenType::LeftBrace                => self.block(),
+                    x if x.typ == TokenType::Semicolon                => self.empty_statement(),
+                    // ExpressionStatement
+                    x if is_reserved_word(x, &ReservedWord::If)       => self.if_statement(),
+                    // BreakableStatement
+                    x if is_reserved_word(x, &ReservedWord::Continue) => self.continue_statement(),
+                    x if is_reserved_word(x, &ReservedWord::Break)    => self.break_statement(),
+                    x if is_reserved_word(x, &ReservedWord::Return)   => self.return_statement(),
+                    x if is_reserved_word(x, &ReservedWord::With)     => self.with_statement(),
+                    // LabelledStatement
+                    x if is_reserved_word(x, &ReservedWord::Throw)    => self.throw_statement(),
+                    x if is_reserved_word(x, &ReservedWord::Try)      => self.try_statement(),
+                    x if is_reserved_word(x, &ReservedWord::Debugger) => self.debugger_statement(),
                     // Other
                     _                            => Err(ParseError::UnexpectedToken),
                 }
@@ -88,6 +99,38 @@ where I: Iterator<Item = char> {
     }
 
     fn block(&mut self) -> Result<Node, ParseError> {
+        Err(ParseError::UnexpectedToken)
+    }
+
+    fn if_statement(&mut self) -> Result<Node, ParseError> {
+        Err(ParseError::UnexpectedToken)
+    }
+
+    fn continue_statement(&mut self) -> Result<Node, ParseError> {
+        Err(ParseError::UnexpectedToken)
+    }
+
+    fn break_statement(&mut self) -> Result<Node, ParseError> {
+        Err(ParseError::UnexpectedToken)
+    }
+
+    fn return_statement(&mut self) -> Result<Node, ParseError> {
+        Err(ParseError::UnexpectedToken)
+    }
+
+    fn with_statement(&mut self) -> Result<Node, ParseError> {
+        Err(ParseError::UnexpectedToken)
+    }
+
+    fn throw_statement(&mut self) -> Result<Node, ParseError> {
+        Err(ParseError::UnexpectedToken)
+    }
+
+    fn try_statement(&mut self) -> Result<Node, ParseError> {
+        Err(ParseError::UnexpectedToken)
+    }
+
+    fn debugger_statement(&mut self) -> Result<Node, ParseError> {
         Err(ParseError::UnexpectedToken)
     }
 }
@@ -118,6 +161,13 @@ fn is_class_declaration(token: &Token) -> bool {
 fn is_variable_statement(token: &Token) -> bool {
     match token.typ {
         TokenType::Identifier(_, Some(ReservedWord::Var)) => true,
+        _ => false,
+    }
+}
+
+fn is_reserved_word(token: &Token, expected: &ReservedWord) -> bool {
+    match &token.typ {
+        TokenType::Identifier(_, Some(actual)) if actual == expected => true,
         _ => false,
     }
 }
