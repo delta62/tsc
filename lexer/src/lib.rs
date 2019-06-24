@@ -1,16 +1,18 @@
+#[macro_use]
+extern crate error_chain;
 extern crate unicode;
 
 mod charclass;
-mod lexerror;
+mod errors;
 mod lexstream;
 mod location;
 mod token;
 
+use self::errors::*;
 use self::location::Location;
 use self::lexstream::LexStream;
-pub use self::token::{CommentStyle,QuoteStyle,ReservedWord,Token,TokenType,get_reserved_word,identifier};
-use self::lexerror::LexError;
-
+pub use self::token::{CommentStyle,QuoteStyle,ReservedWord,Token,TokenType};
+use self::token::{identifier};
 use self::charclass::{
     is_escapable_char,
     is_id_start,
@@ -43,14 +45,14 @@ where I: Iterator<Item = char>,
         }
     }
 
-    fn unexpected_char(&self, c: char) -> LexError {
+    fn unexpected_char(&self, c: char) -> ErrorKind {
         let (line, col) = self.stream.location();
-        LexError::UnexpectedCharacter(line, col, c)
+        ErrorKind::UnexpectedChar(c, line, col)
     }
 
-    fn unexpected_eof(&self) -> LexError {
+    fn unexpected_eof(&self) -> ErrorKind {
         let (line, col) = self.stream.location();
-        LexError::UnexpectedEndOfInput(line, col)
+        ErrorKind::UnexpectedEof(line, col)
     }
 
     fn scalar(&mut self, loc: Location, typ: TokenType) -> Token {
@@ -62,7 +64,7 @@ where I: Iterator<Item = char>,
         self.goal = goal;
     }
 
-    fn comment(&mut self, loc: Location, style: CommentStyle) -> Result<Token, LexError> {
+    fn comment(&mut self, loc: Location, style: CommentStyle) -> Result<Token> {
         let mut s = String::new();
         self.stream.skip_char();
         match style {
@@ -77,11 +79,11 @@ where I: Iterator<Item = char>,
                                     s.push('*');
                                     s.push(c);
                                 },
-                                None => return Err(self.unexpected_eof()),
+                                None => return Err(self.unexpected_eof().into()),
                             }
                         },
                         Some(c) => s.push(c),
-                        None    => return Err(self.unexpected_eof()),
+                        None    => return Err(self.unexpected_eof().into()),
                     }
                 }
             },
@@ -97,7 +99,7 @@ where I: Iterator<Item = char>,
         TokenType::WhiteSpace(s)
     }
 
-    fn string(&mut self, quote: QuoteStyle) -> Result<TokenType, LexError> {
+    fn string(&mut self, quote: QuoteStyle) -> Result<TokenType> {
         let mut s = String::new();
         self.stream.skip_char();
 
@@ -111,9 +113,9 @@ where I: Iterator<Item = char>,
                         Err(x) => return Err(x),
                     }
                 },
-                Some(c) if is_line_terminator(c) => return Err(self.unexpected_char(c)),
+                Some(c) if is_line_terminator(c) => return Err(self.unexpected_char(c).into()),
                 Some(c) => s.push(c),
-                None    => return Err(self.unexpected_eof()),
+                None    => return Err(self.unexpected_eof().into()),
             }
         }
 
@@ -122,7 +124,7 @@ where I: Iterator<Item = char>,
     }
 
     // matches constructs beginning with a digit, e.g. 0.123 or 10e+42
-    fn digit(&mut self) -> Result<TokenType, LexError> {
+    fn digit(&mut self) -> Result<TokenType> {
         let mut s = String::new();
 
 
@@ -139,8 +141,8 @@ where I: Iterator<Item = char>,
                             Some(c) if c.is_ascii_hexdigit() => {
                                 s.push(c)
                             },
-                            Some(c) => return Err(self.unexpected_char(c)),
-                            None => return Err(self.unexpected_eof())
+                            Some(c) => return Err(self.unexpected_char(c).into()),
+                            None => return Err(self.unexpected_eof().into())
                         }
                         self.stream.push_while(&mut s, |c| c.is_ascii_hexdigit());
                         return Ok(TokenType::Number(s))
@@ -156,8 +158,8 @@ where I: Iterator<Item = char>,
                                 s.push(c)
                             },
                             // otherwise return an error
-                            Some(c) => return Err(self.unexpected_char(c)),
-                            None => return Err(self.unexpected_eof())
+                            Some(c) => return Err(self.unexpected_char(c).into()),
+                            None => return Err(self.unexpected_eof().into())
                         }
                         self.stream.push_while(&mut s, |c| is_ascii_octaldigit(c));
                         return Ok(TokenType::Number(s))
@@ -173,8 +175,8 @@ where I: Iterator<Item = char>,
                                 s.push(c)
                             },
                             // otherwise return an error
-                            Some(c) => return Err(self.unexpected_char(c)),
-                            None => return Err(self.unexpected_eof())
+                            Some(c) => return Err(self.unexpected_char(c).into()),
+                            None => return Err(self.unexpected_eof().into())
                         }
                         self.stream.push_while(&mut s, |c| is_ascii_binarydigit(c));
                         return Ok(TokenType::Number(s))
@@ -183,7 +185,7 @@ where I: Iterator<Item = char>,
                     None => ()
                 }
             },
-            None => return Err(self.unexpected_eof()),
+            None => return Err(self.unexpected_eof().into()),
             Some(_) => ()
         }
 
@@ -212,14 +214,14 @@ where I: Iterator<Item = char>,
     }
 
     // Assumes the "." has been skipped
-    fn decimal(&mut self) -> Result<String, LexError> {
+    fn decimal(&mut self) -> Result<String> {
         // self.stream.skip_char();
         let mut s = String::new();
         s.push('.');
         match self.stream.next() {
             Some(c) if c.is_ascii_digit() => s.push(c),
-            Some(c) => return Err(self.unexpected_char(c)),
-            None    => return Err(self.unexpected_eof()),
+            Some(c) => return Err(self.unexpected_char(c).into()),
+            None    => return Err(self.unexpected_eof().into()),
         }
 
         self.stream.push_while(&mut s, |c| c.is_ascii_digit());
@@ -228,7 +230,7 @@ where I: Iterator<Item = char>,
         Ok(s)
     }
 
-    fn exponent(&mut self) -> Result<String, LexError> {
+    fn exponent(&mut self) -> Result<String> {
         self.stream.skip_char();
         let mut s = String::new();
         match self.stream.peek() {
@@ -241,8 +243,8 @@ where I: Iterator<Item = char>,
 
         match self.stream.next() {
             Some(d) if d.is_ascii_digit() => s.push(d),
-            Some(c) => return Err(self.unexpected_char(c)),
-            None    => return Err(self.unexpected_eof()),
+            Some(c) => return Err(self.unexpected_char(c).into()),
+            None    => return Err(self.unexpected_eof().into()),
         }
 
         self.stream.push_while(&mut s, |d| d.is_ascii_digit());
@@ -251,7 +253,7 @@ where I: Iterator<Item = char>,
         Ok(s)
     }
 
-    fn slash(&mut self, loc: Location) -> Result<Token, LexError> {
+    fn slash(&mut self, loc: Location) -> Result<Token> {
         self.stream.skip_char();
         match self.stream.peek() {
             Some('/') => self.comment(loc, CommentStyle::SingleLine),
@@ -262,7 +264,7 @@ where I: Iterator<Item = char>,
         }
     }
 
-    fn escape_or_line_continuation(&mut self) -> Result<String, LexError> {
+    fn escape_or_line_continuation(&mut self) -> Result<String> {
         match self.stream.next() {
             // Line continuation
             Some(c) if is_line_terminator(c) => {
@@ -280,7 +282,7 @@ where I: Iterator<Item = char>,
             Some('0') => {
                 self.stream.skip_char();
                 match self.stream.peek() {
-                    Some(c) if c.is_ascii_digit() => Err(self.unexpected_char(c)),
+                    Some(c) if c.is_ascii_digit() => Err(self.unexpected_char(c).into()),
                     _ => Ok("\\0".to_string()),
                 }
             },
@@ -301,23 +303,23 @@ where I: Iterator<Item = char>,
                                 s.push(c);
                                 Ok(s)
                             },
-                            Some(c) => Err(self.unexpected_char(c)),
-                            None    => Err(self.unexpected_eof()),
+                            Some(c) => Err(self.unexpected_char(c).into()),
+                            None    => Err(self.unexpected_eof().into()),
                         }
                     },
-                    Some(x) => Err(self.unexpected_char(x)),
-                    None    => Err(self.unexpected_eof()),
+                    Some(x) => Err(self.unexpected_char(x).into()),
+                    None    => Err(self.unexpected_eof().into()),
                 }
             },
             // UnicodeEscapeSequence
             Some('u') => self.unicode_escape(),
             // Something else; invalid
-            Some(c) => Err(self.unexpected_char(c)),
-            None    => Err(self.unexpected_eof()),
+            Some(c) => Err(self.unexpected_char(c).into()),
+            None    => Err(self.unexpected_eof().into()),
         }
     }
 
-    fn template(&mut self, loc: Location) -> Result<Token, LexError> {
+    fn template(&mut self, loc: Location) -> Result<Token> {
         self.stream.skip_char();
         let mut s = String::new();
 
@@ -335,14 +337,14 @@ where I: Iterator<Item = char>,
                             self.stream.skip_char();
                             s.push(c);
                         },
-                        None => return Err(self.unexpected_eof()),
+                        None => return Err(self.unexpected_eof().into()),
                     }
                 },
                 Some('\\') => {
                     s.push('\\');
                     match self.stream.next() {
                         Some(c) => s.push(c),
-                        None    => return Err(self.unexpected_eof()),
+                        None    => return Err(self.unexpected_eof().into()),
                     }
                 },
                 Some('`') => {
@@ -353,7 +355,7 @@ where I: Iterator<Item = char>,
                 Some(c) => {
                     s.push(c);
                 }
-                None => return Err(self.unexpected_eof()),
+                None => return Err(self.unexpected_eof().into()),
             }
         }
 
@@ -479,15 +481,15 @@ where I: Iterator<Item = char>,
         }
     }
 
-    fn period(&mut self, loc: Location) -> Result<Token, LexError> {
+    fn period(&mut self, loc: Location) -> Result<Token> {
         self.stream.skip_char();
         match self.stream.peek() {
             Some('.') => {
                 self.stream.skip_char();
                 match self.stream.next() {
                     Some('.') => Ok(Token::new(loc, TokenType::Ellipsis)),
-                    Some(c)   => Err(self.unexpected_char(c)),
-                    None      => Err(self.unexpected_eof()),
+                    Some(c)   => Err(self.unexpected_char(c).into()),
+                    None      => Err(self.unexpected_eof().into()),
                 }
             },
             Some(c) if c.is_ascii_digit() => {
@@ -521,7 +523,7 @@ where I: Iterator<Item = char>,
         }
     }
 
-    fn identifier(&mut self, loc: Location) -> Result<Token, LexError> {
+    fn identifier(&mut self, loc: Location) -> Result<Token> {
         let mut s = String::new();
 
         // Head char
@@ -536,8 +538,8 @@ where I: Iterator<Item = char>,
                 self.stream.skip_char();
                 s.push(c);
             },
-            Some(c) => return Err(self.unexpected_char(c)),
-            None    => return Err(self.unexpected_eof()),
+            Some(c) => return Err(self.unexpected_char(c).into()),
+            None    => return Err(self.unexpected_eof().into()),
         }
 
         // Tail chars
@@ -562,7 +564,7 @@ where I: Iterator<Item = char>,
         Ok(Token::new(loc, identifier(s)))
     }
 
-    fn unicode_escape(&mut self) -> Result<String, LexError> {
+    fn unicode_escape(&mut self) -> Result<String> {
         let mut s = String::with_capacity(6);
 
         // "\"
@@ -575,8 +577,8 @@ where I: Iterator<Item = char>,
                 s.push('u');
                 self.stream.skip_char();
             },
-            Some(c)   => return Err(self.unexpected_char(c)),
-            None      => return Err(self.unexpected_eof()),
+            Some(c)   => return Err(self.unexpected_char(c).into()),
+            None      => return Err(self.unexpected_eof().into()),
         }
 
         match self.stream.peek() {
@@ -599,10 +601,14 @@ where I: Iterator<Item = char>,
                 match cp.parse::<u32>() {
                     Ok(x) => {
                         if x > 0x10FFFF {
-                            return Err(LexError::InvalidCodePoint(cp))
+                            let (line, col) = self.stream.location();
+                            return Err(ErrorKind::InvalidCodePoint(cp, line, col).into())
                         }
                     },
-                    Err(_) => return Err(LexError::InvalidCodePoint(cp))
+                    Err(_) => {
+                        let (line, col) = self.stream.location();
+                        return Err(ErrorKind::InvalidCodePoint(cp, line, col).into())
+                    }
                 }
 
                 // Closing brace
@@ -611,8 +617,8 @@ where I: Iterator<Item = char>,
                         s.push('}');
                         self.stream.skip_char();
                     },
-                    Some(c) => return Err(self.unexpected_char(c)),
-                    None    => return Err(self.unexpected_eof()),
+                    Some(c) => return Err(self.unexpected_char(c).into()),
+                    None    => return Err(self.unexpected_eof().into()),
                 }
             },
             _ => {
@@ -623,8 +629,8 @@ where I: Iterator<Item = char>,
                             self.stream.skip_char();
                             s.push(c);
                         },
-                        Some(c) => return Err(self.unexpected_char(c)),
-                        None    => return Err(self.unexpected_eof()),
+                        Some(c) => return Err(self.unexpected_char(c).into()),
+                        None    => return Err(self.unexpected_eof().into()),
                     }
                 }
             }
@@ -634,12 +640,12 @@ where I: Iterator<Item = char>,
         Ok(s)
     }
 
-    fn regex(&mut self, loc: Location) -> Result<Token, LexError> {
+    fn regex(&mut self, loc: Location) -> Result<Token> {
         self.stream.skip_char();
         let mut body = String::new();
 
         match self.stream.peek() {
-            Some(c) if c == '*' || c == '/' => return Err(self.unexpected_char(c)),
+            Some(c) if c == '*' || c == '/' => return Err(self.unexpected_char(c).into()),
             _ => (),
         }
 
@@ -659,28 +665,28 @@ where I: Iterator<Item = char>,
                             },
                             Some('\\') => {
                                 match self.stream.next() {
-                                    Some(c) if is_line_terminator(c) => return Err(self.unexpected_char(c)),
+                                    Some(c) if is_line_terminator(c) => return Err(self.unexpected_char(c).into()),
                                     Some(c) => body.push(c),
-                                    None    => return Err(self.unexpected_eof()),
+                                    None    => return Err(self.unexpected_eof().into()),
                                 }
                             },
-                            Some(c) if is_line_terminator(c) => return Err(self.unexpected_char(c)),
+                            Some(c) if is_line_terminator(c) => return Err(self.unexpected_char(c).into()),
                             Some(c) => body.push(c),
-                            None => return Err(self.unexpected_eof()),
+                            None => return Err(self.unexpected_eof().into()),
                         }
                     }
                 },
                 Some('\\') => {
                     body.push('\\');
                     match self.stream.next() {
-                        Some(c) if is_line_terminator(c) => return Err(self.unexpected_char(c)),
+                        Some(c) if is_line_terminator(c) => return Err(self.unexpected_char(c).into()),
                         Some(c) => body.push(c),
-                        None    => return Err(self.unexpected_eof()),
+                        None    => return Err(self.unexpected_eof().into()),
                     }
                 },
-                Some(c) if is_line_terminator(c) => return Err(self.unexpected_char(c)),
+                Some(c) if is_line_terminator(c) => return Err(self.unexpected_char(c).into()),
                 Some(c) => body.push(c),
-                None    => return Err(self.unexpected_eof()),
+                None    => return Err(self.unexpected_eof().into()),
             }
         }
 
@@ -711,9 +717,9 @@ where I: Iterator<Item = char>,
 impl<I> Iterator for Lexer<I>
 where I: Iterator<Item = char>
 {
-    type Item = Result<Token, LexError>;
+    type Item = Result<Token>;
 
-    fn next(&mut self) -> Option<Result<Token, LexError>> {
+    fn next(&mut self) -> Option<Result<Token>> {
         let loc = self.stream.location();
         self.stream.peek().map(|next| {
             match next {
@@ -752,7 +758,7 @@ where I: Iterator<Item = char>
                 '~'  => Ok(self.scalar(loc, TokenType::Tilde)),
                 ';'  => Ok(self.scalar(loc, TokenType::Semicolon)),
                 '?'  => Ok(self.scalar(loc, TokenType::Question)),
-                c    => Err(self.unexpected_char(c)),
+                c    => Err(self.unexpected_char(c).into()),
             }
         })
     }

@@ -145,13 +145,6 @@ pub fn identifier(text: String) -> TokenType {
     TokenType::Identifier(text, keyword)
 }
 
-pub fn get_reserved_word(identifier: &TokenType) -> Option<&ReservedWord> {
-    match identifier {
-        TokenType::Identifier(_, Some(kw)) => Some(kw),
-        _                                  => None,
-    }
-}
-
 #[derive(Debug,PartialEq)]
 pub enum TokenType {
     Arrow,
