@@ -1,5 +1,6 @@
 use std::iter::Peekable;
 
+use super::errors::*;
 use super::location::Location;
 
 pub struct LexStream<I>
@@ -53,6 +54,31 @@ where I: Iterator<Item = char>
                     self.skip_char();
                 },
                 _ => break
+            }
+        }
+    }
+
+    pub fn push_until(&mut self, s: &mut String, seq: &[char]) -> Result<()> {
+        let mut seq_pos = 0;
+        loop {
+            match self.next() {
+                Some(c) if seq[seq_pos] == c => {
+                    seq_pos += 1;
+                    if seq_pos == seq.len() {
+                        return Ok(())
+                    }
+                },
+                Some(c) => {
+                    for i in 0..seq_pos {
+                        s.push(seq[i]);
+                    }
+                    seq_pos = 0;
+                    s.push(c);
+                },
+                None => {
+                    let (line, col) = self.location();
+                    return Err(ErrorKind::UnexpectedEof(line, col).into())
+                },
             }
         }
     }

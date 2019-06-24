@@ -67,29 +67,14 @@ where I: Iterator<Item = char>,
     fn comment(&mut self, loc: Location, style: CommentStyle) -> Result<Token> {
         let mut s = String::new();
         self.stream.skip_char();
+
         match style {
-            CommentStyle::SingleLine => self.stream.push_while(&mut s, |x| !is_line_terminator(x)),
-            CommentStyle::MultiLine => {
-                loop {
-                    match self.stream.next() {
-                        Some('*') => {
-                            match self.stream.next() {
-                                Some('/') => break,
-                                Some(c) => {
-                                    s.push('*');
-                                    s.push(c);
-                                },
-                                None => return Err(self.unexpected_eof().into()),
-                            }
-                        },
-                        Some(c) => s.push(c),
-                        None    => return Err(self.unexpected_eof().into()),
-                    }
-                }
-            },
-        }
-        s.shrink_to_fit();
-        Ok(Token::new(loc, TokenType::Comment(s, style)))
+            CommentStyle::SingleLine => Ok(self.stream.push_while(&mut s, |x| !is_line_terminator(x))),
+            CommentStyle::MultiLine  => self.stream.push_until(&mut s, &[ '*', '/' ]),
+        }.map(|_| {
+            s.shrink_to_fit();
+            Token::new(loc, TokenType::Comment(s, style))
+        })
     }
 
     fn ws(&mut self) -> TokenType {
