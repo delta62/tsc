@@ -1068,14 +1068,14 @@ mod tests {
         assert_eq!(token_text(output), input);
     }
 
-    fn single_token(input: &str) -> Option<Result<Token, LexError>> {
+    fn single_token(input: &str) -> Option<Result<Token>> {
         let mut lexer = Lexer::new(input.chars());
         let ret = lexer.next();
         assert!(lexer.next().is_none(), "lexed more than one token");
         ret
     }
 
-    fn token_text(tok: Option<Result<Token, LexError>>) -> String {
+    fn token_text(tok: Option<Result<Token>>) -> String {
         match tok {
             Some(Ok(t)) => t.typ.to_string(),
             Some(Err(e)) => panic!("{:?}", e),
