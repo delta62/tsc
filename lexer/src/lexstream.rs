@@ -44,6 +44,17 @@ where I: Iterator<Item = char>
         }
     }
 
+    pub fn expect<P>(&mut self, predicate: P) -> Result<char>
+    where P: Fn(char) -> bool
+    {
+        let (line, col) = self.location();
+        match self.next() {
+            Some(c) if predicate(c) => Ok(c),
+            Some(c) => Err(ErrorKind::UnexpectedChar(c, line, col).into()),
+            None    => Err(ErrorKind::UnexpectedEof(line, col).into()),
+        }
+    }
+
     pub fn push_while<P>(&mut self, s: &mut String, predicate: P)
     where P: Fn(char) -> bool
     {

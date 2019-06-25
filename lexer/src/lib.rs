@@ -112,7 +112,6 @@ where I: Iterator<Item = char>,
     fn digit(&mut self) -> Result<TokenType> {
         let mut s = String::new();
 
-
         match self.stream.peek() {
             Some('0') => {
                 s.push('0');
@@ -200,42 +199,36 @@ where I: Iterator<Item = char>,
 
     // Assumes the "." has been skipped
     fn decimal(&mut self) -> Result<String> {
-        // self.stream.skip_char();
         let mut s = String::new();
         s.push('.');
-        match self.stream.next() {
-            Some(c) if c.is_ascii_digit() => s.push(c),
-            Some(c) => return Err(self.unexpected_char(c).into()),
-            None    => return Err(self.unexpected_eof().into()),
-        }
 
-        self.stream.push_while(&mut s, |c| c.is_ascii_digit());
-
-        s.shrink_to_fit();
-        Ok(s)
+        self.stream
+            .expect(|c| c.is_ascii_digit())
+            .map(|c| {
+                s.push(c);
+                self.stream.push_while(&mut s, |c| c.is_ascii_digit());
+                s.shrink_to_fit();
+                s
+            })
     }
 
     fn exponent(&mut self) -> Result<String> {
-        self.stream.skip_char();
+        self.stream.skip_char(); // e | E
         let mut s = String::new();
-        match self.stream.peek() {
-            Some(c) if c == '+' || c == '-' => {
-                self.stream.skip_char();
+
+        if let Some('+') | Some('-') = self.stream.peek() {
+            s.push(self.stream.peek().unwrap());
+            self.stream.skip_char();
+        }
+
+        self.stream
+            .expect(|c| c.is_ascii_digit())
+            .map(|c| {
                 s.push(c);
-            },
-            _ => (),
-        }
-
-        match self.stream.next() {
-            Some(d) if d.is_ascii_digit() => s.push(d),
-            Some(c) => return Err(self.unexpected_char(c).into()),
-            None    => return Err(self.unexpected_eof().into()),
-        }
-
-        self.stream.push_while(&mut s, |d| d.is_ascii_digit());
-
-        s.shrink_to_fit();
-        Ok(s)
+                self.stream.push_while(&mut s, |d| d.is_ascii_digit());
+                s.shrink_to_fit();
+                s
+            })
     }
 
     fn slash(&mut self, loc: Location) -> Result<Token> {
@@ -244,8 +237,7 @@ where I: Iterator<Item = char>,
             Some('/') => self.comment(loc, CommentStyle::SingleLine),
             Some('*') => self.comment(loc, CommentStyle::MultiLine),
             Some('=') => Ok(self.scalar(loc, TokenType::DivEqual)),
-            None |
-            Some(_)   => Ok(self.scalar(loc, TokenType::Div)),
+            _         => Ok(self.scalar(loc, TokenType::Div)),
         }
     }
 
@@ -471,11 +463,7 @@ where I: Iterator<Item = char>,
         match self.stream.peek() {
             Some('.') => {
                 self.stream.skip_char();
-                match self.stream.next() {
-                    Some('.') => Ok(Token::new(loc, TokenType::Ellipsis)),
-                    Some(c)   => Err(self.unexpected_char(c).into()),
-                    None      => Err(self.unexpected_eof().into()),
-                }
+                self.stream.expect(|c| c == '.').map(|_| Token::new(loc, TokenType::Ellipsis))
             },
             Some(c) if c.is_ascii_digit() => {
                 self.decimal().map(|x| Token::new(loc, TokenType::Number(x)))
