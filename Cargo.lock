@@ -80,6 +80,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "parser"
 version = "0.1.0"
 dependencies = [
+ "error-chain 0.12.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "lexer 0.1.0",
 ]
 

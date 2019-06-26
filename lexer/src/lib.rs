@@ -3,12 +3,12 @@ extern crate error_chain;
 extern crate unicode;
 
 mod charclass;
-mod errors;
+pub mod errors;
 mod lexstream;
 mod location;
 mod token;
 
-use self::errors::*;
+pub use self::errors::*;
 use self::location::Location;
 use self::lexstream::LexStream;
 pub use self::token::{CommentStyle,QuoteStyle,ReservedWord,Token,TokenType};

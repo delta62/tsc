@@ -5,4 +5,5 @@ authors = ["Sam Noedel <sam.noedel@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+error-chain = "0.12.1"
 lexer = { path = "../lexer" }
