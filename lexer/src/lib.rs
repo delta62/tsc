@@ -31,8 +31,9 @@ pub enum LexGoal {
 pub struct Lexer<I>
 where I: Iterator<Item = char>,
 {
-    goal:   LexGoal,
-    stream: LexStream<I>,
+    goal:        LexGoal,
+    stream:      LexStream<I>,
+    diagnostics: Vec<Error>,
 }
 
 impl<I> Lexer<I>
@@ -40,8 +41,9 @@ where I: Iterator<Item = char>,
 {
     pub fn new(stream: I) -> Lexer<I> {
         Lexer {
-            goal:   LexGoal::InputElementDiv,
-            stream: LexStream::new(stream),
+            goal:        LexGoal::InputElementDiv,
+            stream:      LexStream::new(stream),
+            diagnostics: Vec::new(),
         }
     }
 
@@ -58,6 +60,10 @@ where I: Iterator<Item = char>,
     fn scalar(&mut self, loc: Location, typ: TokenType) -> Token {
         self.stream.skip_char();
         Token::new(loc, typ)
+    }
+
+    pub fn diagnostics(&self) -> &Vec<Error> {
+        &self.diagnostics
     }
 
     pub fn set_goal(&mut self, goal: LexGoal) {
@@ -737,12 +743,11 @@ where I: Iterator<Item = char>
             });
 
             match next {
-                Some(Ok(t)) => return Some(t),
-                Some(Err(_)) => (),
-                None => return None,
+                Some(Ok(t))  => return Some(t),
+                Some(Err(e)) => self.diagnostics.push(e),
+                None         => return None,
             }
         }
-
     }
 }
 
