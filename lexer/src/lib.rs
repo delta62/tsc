@@ -66,6 +66,10 @@ where I: Iterator<Item = char>,
         &self.diagnostics
     }
 
+    pub fn is_ok(&self) -> bool {
+        self.diagnostics.len() == 0
+    }
+
     pub fn set_goal(&mut self, goal: LexGoal) {
         self.goal = goal;
     }
