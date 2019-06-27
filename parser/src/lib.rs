@@ -7,12 +7,6 @@ mod errors;
 use errors::*;
 use lexer::{Lexer,ReservedWord,Token,TokenType};
 
-pub enum ParseError {
-    NotImplemented,
-    UnexpectedToken,
-    UnexpectedEof,
-}
-
 pub enum LetOrConst {
     Let,
     Const,
@@ -22,7 +16,13 @@ pub enum Declaration {
     LexicalDeclaration(LetOrConst, Vec<Node>),
 }
 
-pub struct Assignment { }
+pub enum Assignment {
+    ConditionalExpression,
+    YieldExpression,
+    ArrowFunction,
+    AsyncArrowFunction,
+    LeftHandSideExpression,
+}
 
 pub struct Binding {
     identifier: String,
@@ -100,7 +100,7 @@ where I: Iterator<Item = char> {
             x if is_reserved_word(x, &ReservedWord::Try)      => self.try_statement(),
             x if is_reserved_word(x, &ReservedWord::Debugger) => self.debugger_statement(),
             // Other
-            x                                                 => Err(ErrorKind::UnexpectedToken.into()),
+            _                                                 => Err(ErrorKind::NotImplemented.into()),
         }
     }
 
@@ -118,7 +118,8 @@ where I: Iterator<Item = char> {
             Some(Token { column: _, line: _, typ: TokenType::Identifier(_, Some(ReservedWord::Const)) }) => {
                 Ok(LetOrConst::Const)
             },
-            x => Err(ErrorKind::UnexpectedToken.into()),
+            Some(x) => Err(ErrorKind::UnexpectedToken(x).into()),
+            None => Err(ErrorKind::UnexpectedEof.into()),
         }
     }
 
@@ -134,7 +135,7 @@ where I: Iterator<Item = char> {
             // Some(Ok(Token { column: _, line: _, typ: TokenType::Identifier(_, Some(ReservedWord::Await)) })) => None,
             // Some(Ok(t)) if is_reserved_word(t) => Err(ParseError::UnexpectedToken),
             // Some(Ok(t)) if is_identifier(t)    => Ok(t),
-            Some(t) => Err(ErrorKind::UnexpectedToken.into()),
+            Some(t) => Err(ErrorKind::UnexpectedToken(t).into()),
             _ => Err(ErrorKind::NotImplemented.into())
             // Some(Err(e)) => Err(e),
             // None => Err(ErrorKind::UnexpectedEof.into()),

@@ -1,3 +1,5 @@
+use lexer::Token;
+
 error_chain! {
 
     links {
@@ -9,6 +11,9 @@ error_chain! {
 
         NotImplemented
 
-        UnexpectedToken
+        UnexpectedToken(token: Token) {
+            description("unexpected token")
+            display("Unexpected token {:?}", token)
+        }
     }
 }
