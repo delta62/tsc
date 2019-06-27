@@ -690,50 +690,59 @@ where I: Iterator<Item = char>,
 impl<I> Iterator for Lexer<I>
 where I: Iterator<Item = char>
 {
-    type Item = Result<Token>;
+    type Item = Token;
 
-    fn next(&mut self) -> Option<Result<Token>> {
-        let loc = self.stream.location();
-        self.stream.peek().map(|next| {
+    fn next(&mut self) -> Option<Token> {
+        loop {
+            let loc = self.stream.location();
+            let next = self.stream.peek().map(|next| {
+                match next {
+                    x if is_ws(x)           => Ok(Token::new(loc, self.ws())),
+                    x if x.is_ascii_digit() => self.digit().map(|x| Token::new(loc, x)),
+                    x if is_id_start(x)     => self.identifier(loc),
+                    '`'  => self.template(loc),
+                    '/'  => {
+                        match self.goal {
+                            LexGoal::InputElementDiv => self.slash(loc),
+                            LexGoal::InputElementRegExp => self.regex(loc),
+                        }
+                    },
+                    '\'' => self.string(QuoteStyle::Single).map(|x| Token::new(loc, x)),
+                    '"'  => self.string(QuoteStyle::Double).map(|x| Token::new(loc, x)),
+                    '{'  => Ok(self.scalar(loc, TokenType::LeftBrace)),
+                    '}'  => Ok(self.scalar(loc, TokenType::RightBrace)),
+                    '='  => Ok(Token::new(loc, self.equal())),
+                    '!'  => Ok(Token::new(loc, self.bang())),
+                    '&'  => Ok(Token::new(loc, self.ampersand())),
+                    '|'  => Ok(Token::new(loc, self.pipe())),
+                    '^'  => Ok(Token::new(loc, self.caret())),
+                    '('  => Ok(self.scalar(loc, TokenType::LeftParen)),
+                    ')'  => Ok(self.scalar(loc, TokenType::RightParen)),
+                    ']'  => Ok(self.scalar(loc, TokenType::RightBracket)),
+                    '['  => Ok(self.scalar(loc, TokenType::LeftBracket)),
+                    ':'  => Ok(self.scalar(loc, TokenType::Colon)),
+                    ','  => Ok(self.scalar(loc, TokenType::Comma)),
+                    '+'  => Ok(Token::new(loc, self.plus())),
+                    '-'  => Ok(Token::new(loc, self.minus())),
+                    '>'  => Ok(Token::new(loc, self.gt())),
+                    '<'  => Ok(Token::new(loc, self.lt())),
+                    '.'  => self.period(loc),
+                    '%'  => Ok(Token::new(loc, self.percent())),
+                    '*'  => Ok(Token::new(loc, self.asterisk())),
+                    '~'  => Ok(self.scalar(loc, TokenType::Tilde)),
+                    ';'  => Ok(self.scalar(loc, TokenType::Semicolon)),
+                    '?'  => Ok(self.scalar(loc, TokenType::Question)),
+                    c    => Err(self.unexpected_char(c).into()),
+                }
+            });
+
             match next {
-                x if is_ws(x)           => Ok(Token::new(loc, self.ws())),
-                x if x.is_ascii_digit() => self.digit().map(|x| Token::new(loc, x)),
-                x if is_id_start(x)     => self.identifier(loc),
-                '`'  => self.template(loc),
-                '/'  => {
-                    match self.goal {
-                        LexGoal::InputElementDiv => self.slash(loc),
-                        LexGoal::InputElementRegExp => self.regex(loc),
-                    }
-                },
-                '\'' => self.string(QuoteStyle::Single).map(|x| Token::new(loc, x)),
-                '"'  => self.string(QuoteStyle::Double).map(|x| Token::new(loc, x)),
-                '{'  => Ok(self.scalar(loc, TokenType::LeftBrace)),
-                '}'  => Ok(self.scalar(loc, TokenType::RightBrace)),
-                '='  => Ok(Token::new(loc, self.equal())),
-                '!'  => Ok(Token::new(loc, self.bang())),
-                '&'  => Ok(Token::new(loc, self.ampersand())),
-                '|'  => Ok(Token::new(loc, self.pipe())),
-                '^'  => Ok(Token::new(loc, self.caret())),
-                '('  => Ok(self.scalar(loc, TokenType::LeftParen)),
-                ')'  => Ok(self.scalar(loc, TokenType::RightParen)),
-                ']'  => Ok(self.scalar(loc, TokenType::RightBracket)),
-                '['  => Ok(self.scalar(loc, TokenType::LeftBracket)),
-                ':'  => Ok(self.scalar(loc, TokenType::Colon)),
-                ','  => Ok(self.scalar(loc, TokenType::Comma)),
-                '+'  => Ok(Token::new(loc, self.plus())),
-                '-'  => Ok(Token::new(loc, self.minus())),
-                '>'  => Ok(Token::new(loc, self.gt())),
-                '<'  => Ok(Token::new(loc, self.lt())),
-                '.'  => self.period(loc),
-                '%'  => Ok(Token::new(loc, self.percent())),
-                '*'  => Ok(Token::new(loc, self.asterisk())),
-                '~'  => Ok(self.scalar(loc, TokenType::Tilde)),
-                ';'  => Ok(self.scalar(loc, TokenType::Semicolon)),
-                '?'  => Ok(self.scalar(loc, TokenType::Question)),
-                c    => Err(self.unexpected_char(c).into()),
+                Some(Ok(t)) => return Some(t),
+                Some(Err(_)) => (),
+                None => return None,
             }
-        })
+        }
+
     }
 }
 
@@ -1041,17 +1050,16 @@ mod tests {
         assert_eq!(token_text(output), input);
     }
 
-    fn single_token(input: &str) -> Option<Result<Token>> {
+    fn single_token(input: &str) -> Option<Token> {
         let mut lexer = Lexer::new(input.chars());
         let ret = lexer.next();
         assert!(lexer.next().is_none(), "lexed more than one token");
         ret
     }
 
-    fn token_text(tok: Option<Result<Token>>) -> String {
+    fn token_text(tok: Option<Token>) -> String {
         match tok {
-            Some(Ok(t)) => t.typ.to_string(),
-            Some(Err(e)) => panic!("{:?}", e),
+            Some(t) => t.typ.to_string(),
             None => panic!("Didn't get a token from the lexer")
         }
     }

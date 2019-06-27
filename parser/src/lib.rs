@@ -57,7 +57,7 @@ where I: Iterator<Item = char> {
         loop {
             let next = self.lexer.next();
             match &next {
-                Some(Ok(_)) => {
+                Some(_) => {
                     let result = self.declaration_or_statement();
                     match result {
                         Ok(x) => stmts.push(x),
@@ -76,36 +76,32 @@ where I: Iterator<Item = char> {
 
     fn declaration_or_statement(&mut self) -> Result<Node> {
         let token = self.lexer.next().unwrap();
-        token
-            .map_err(|_| ErrorKind::NotImplemented.into())
-            .and_then(|token| {
-                match &token {
-                    // Declarations
-                    x if is_variable_declaration(x)                   => self.variable_declaration(),
-                    x if is_function_declaration(x)                   => self.function_declaration(),
-                    x if is_class_declaration(x)                      => self.class_declaration(),
-                    // Statements
-                    x if is_variable_statement(x)                     => self.variable_declaration(),
-                    x if x.typ == TokenType::LeftBrace                => self.block(),
-                    x if x.typ == TokenType::Semicolon                => self.empty_statement(),
-                    // ExpressionStatement
-                    x if is_reserved_word(x, &ReservedWord::If)       => self.if_statement(),
-                    x if is_reserved_word(x, &ReservedWord::Switch)   => self.switch_statement(),
-                    x if is_reserved_word(x, &ReservedWord::Do)       => self.do_statement(),
-                    x if is_reserved_word(x, &ReservedWord::While)    => self.while_statement(),
-                    x if is_reserved_word(x, &ReservedWord::For)      => self.for_statement(),
-                    x if is_reserved_word(x, &ReservedWord::Continue) => self.continue_statement(),
-                    x if is_reserved_word(x, &ReservedWord::Break)    => self.break_statement(),
-                    x if is_reserved_word(x, &ReservedWord::Return)   => self.return_statement(),
-                    x if is_reserved_word(x, &ReservedWord::With)     => self.with_statement(),
-                    // LabelledStatement
-                    x if is_reserved_word(x, &ReservedWord::Throw)    => self.throw_statement(),
-                    x if is_reserved_word(x, &ReservedWord::Try)      => self.try_statement(),
-                    x if is_reserved_word(x, &ReservedWord::Debugger) => self.debugger_statement(),
-                    // Other
-                    x                                                 => Err(ErrorKind::UnexpectedToken.into()),
-                }
-            })
+        match &token {
+            // Declarations
+            x if is_variable_declaration(x)                   => self.variable_declaration(),
+            x if is_function_declaration(x)                   => self.function_declaration(),
+            x if is_class_declaration(x)                      => self.class_declaration(),
+            // Statements
+            x if is_variable_statement(x)                     => self.variable_declaration(),
+            x if x.typ == TokenType::LeftBrace                => self.block(),
+            x if x.typ == TokenType::Semicolon                => self.empty_statement(),
+            // ExpressionStatement
+            x if is_reserved_word(x, &ReservedWord::If)       => self.if_statement(),
+            x if is_reserved_word(x, &ReservedWord::Switch)   => self.switch_statement(),
+            x if is_reserved_word(x, &ReservedWord::Do)       => self.do_statement(),
+            x if is_reserved_word(x, &ReservedWord::While)    => self.while_statement(),
+            x if is_reserved_word(x, &ReservedWord::For)      => self.for_statement(),
+            x if is_reserved_word(x, &ReservedWord::Continue) => self.continue_statement(),
+            x if is_reserved_word(x, &ReservedWord::Break)    => self.break_statement(),
+            x if is_reserved_word(x, &ReservedWord::Return)   => self.return_statement(),
+            x if is_reserved_word(x, &ReservedWord::With)     => self.with_statement(),
+            // LabelledStatement
+            x if is_reserved_word(x, &ReservedWord::Throw)    => self.throw_statement(),
+            x if is_reserved_word(x, &ReservedWord::Try)      => self.try_statement(),
+            x if is_reserved_word(x, &ReservedWord::Debugger) => self.debugger_statement(),
+            // Other
+            x                                                 => Err(ErrorKind::UnexpectedToken.into()),
+        }
     }
 
     fn variable_declaration(&mut self) -> Result<Node> {
@@ -116,10 +112,10 @@ where I: Iterator<Item = char> {
 
     fn let_or_const(&mut self) -> Result<LetOrConst> {
         match self.lexer.next() {
-            Some(Ok(Token { column: _, line: _, typ: TokenType::Identifier(_, Some(ReservedWord::Let)) })) => {
+            Some(Token { column: _, line: _, typ: TokenType::Identifier(_, Some(ReservedWord::Let)) }) => {
                 Ok(LetOrConst::Let)
             },
-            Some(Ok(Token { column: _, line: _, typ: TokenType::Identifier(_, Some(ReservedWord::Const)) })) => {
+            Some(Token { column: _, line: _, typ: TokenType::Identifier(_, Some(ReservedWord::Const)) }) => {
                 Ok(LetOrConst::Const)
             },
             x => Err(ErrorKind::UnexpectedToken.into()),
@@ -138,7 +134,7 @@ where I: Iterator<Item = char> {
             // Some(Ok(Token { column: _, line: _, typ: TokenType::Identifier(_, Some(ReservedWord::Await)) })) => None,
             // Some(Ok(t)) if is_reserved_word(t) => Err(ParseError::UnexpectedToken),
             // Some(Ok(t)) if is_identifier(t)    => Ok(t),
-            Some(Ok(t)) => Err(ErrorKind::UnexpectedToken.into()),
+            Some(t) => Err(ErrorKind::UnexpectedToken.into()),
             _ => Err(ErrorKind::NotImplemented.into())
             // Some(Err(e)) => Err(e),
             // None => Err(ErrorKind::UnexpectedEof.into()),
@@ -146,7 +142,7 @@ where I: Iterator<Item = char> {
 
         identifier.and_then(|id| {
             let assignment = match self.lexer.next() {
-                Some(Ok(Token { column: _, line: _, typ: TokenType::Equals })) => self.assignment_expression(),
+                Some(Token { column: _, line: _, typ: TokenType::Equals }) => self.assignment_expression(),
                 _ => Err(ErrorKind::UnexpectedEof.into())
             };
 
