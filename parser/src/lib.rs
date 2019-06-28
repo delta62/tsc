@@ -108,6 +108,12 @@ mod tests {
         assert_eq!(res.body.len(), 1);
     }
 
+    #[test]
+    fn parses_several_empty_statements() {
+        let res = parse(";;;");
+        assert_eq!(res.body.len(), 3);
+    }
+
     fn parse(input: &str) -> Script {
         let lexer = Lexer::new(input.chars());
         let mut parser = Parser::new(lexer);
