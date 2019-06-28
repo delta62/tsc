@@ -25,7 +25,7 @@ pub enum StatementListItem {
 }
 
 pub enum Statement {
-    BlockStatement,
+    BlockStatement(Vec<StatementListItem>),
     VariableStatement,
     EmptyStatement,
     ExpressionStatement,
@@ -74,21 +74,39 @@ where I: Iterator<Item = char> {
     }
 
     pub fn script(&mut self) -> Script {
-        let mut statements = Vec::new();
+        let statements = self.statement_list();
+        Script { body: statements }
+    }
 
+    fn statement_list(&mut self) -> Vec<StatementListItem> {
+        let mut statements = Vec::new();
         loop {
             match self.lexer.next() {
                 Some(t) => {
                     match t.typ {
                         TokenType::Semicolon => statements.push(StatementListItem::Statement(Statement::EmptyStatement)),
+                        TokenType::LeftBrace => statements.push(StatementListItem::Statement(self.block())),
                         _                    => self.diagnostics.push(ErrorKind::UnexpectedToken(t).into()),
                     }
                 },
                 None => break,
             }
         }
+        statements
+    }
 
-        Script { body: statements }
+    fn block(&mut self) -> Statement {
+        let statements = self.statement_list();
+        self.expect_next(TokenType::RightBrace);
+        Statement::BlockStatement(statements)
+    }
+
+    fn expect_next(&mut self, expected: TokenType) {
+        if let Some(t) = self.lexer.next() {
+            if t.typ != expected {
+                self.diagnostics.push(ErrorKind::UnexpectedToken(t).into());
+            }
+        }
     }
 }
 
@@ -112,6 +130,12 @@ mod tests {
     fn parses_several_empty_statements() {
         let res = parse(";;;");
         assert_eq!(res.body.len(), 3);
+    }
+
+    #[test]
+    fn parses_block_statement() {
+        let res = parse("{}");
+        assert_eq!(res.body.len(), 1);
     }
 
     fn parse(input: &str) -> Script {
