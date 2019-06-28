@@ -5,7 +5,7 @@ extern crate lexer;
 mod errors;
 
 use errors::*;
-use lexer::{Lexer,TokenType};
+use lexer::{Lexer,ReservedWord,TokenType};
 
 pub enum Assignment {
     ConditionalExpression,
@@ -79,26 +79,32 @@ where I: Iterator<Item = char> {
     }
 
     fn statement_list(&mut self) -> Vec<StatementListItem> {
-        let mut statements = Vec::new();
+        let mut stmts = Vec::new();
         loop {
             match self.lexer.next() {
                 Some(t) => {
                     match t.typ {
-                        TokenType::Semicolon => statements.push(StatementListItem::Statement(Statement::EmptyStatement)),
-                        TokenType::LeftBrace => statements.push(StatementListItem::Statement(self.block())),
+                        TokenType::Semicolon => stmts.push(StatementListItem::Statement(Statement::EmptyStatement)),
+                        TokenType::LeftBrace => stmts.push(StatementListItem::Statement(self.block())),
+                        TokenType::Identifier(_, Some(ReservedWord::Debugger)) => stmts.push(StatementListItem::Statement(self.debugger())),
                         _                    => self.diagnostics.push(ErrorKind::UnexpectedToken(t).into()),
                     }
                 },
                 None => break,
             }
         }
-        statements
+        stmts
     }
 
     fn block(&mut self) -> Statement {
         let statements = self.statement_list();
         self.expect_next(TokenType::RightBrace);
         Statement::BlockStatement(statements)
+    }
+
+    fn debugger(&mut self) -> Statement {
+        self.expect_next(TokenType::Semicolon);
+        Statement::DebuggerStatement
     }
 
     fn expect_next(&mut self, expected: TokenType) {
@@ -135,6 +141,12 @@ mod tests {
     #[test]
     fn parses_block_statement() {
         let res = parse("{}");
+        assert_eq!(res.body.len(), 1);
+    }
+
+    #[test]
+    fn parses_debug_statement() {
+        let res = parse("debugger;");
         assert_eq!(res.body.len(), 1);
     }
 
