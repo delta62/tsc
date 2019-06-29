@@ -88,7 +88,7 @@ where I: Iterator<Item = char> {
                         TokenType::LeftBrace => stmts.push(StatementListItem::Statement(self.block())),
                         TokenType::Identifier(_, Some(ReservedWord::Debugger)) =>
                             stmts.push(StatementListItem::Statement(self.debugger())),
-                        _                    => self.diagnostics.push(ErrorKind::UnexpectedToken(t).into()),
+                        _                    => self.diagnostics.push(ErrorKind::UnexpectedToken(t.line, t.column).into()),
                     }
                 },
                 None => break,
@@ -109,10 +109,14 @@ where I: Iterator<Item = char> {
     }
 
     fn expect_next(&mut self, expected: TokenType) {
-        if let Some(t) = self.lexer.next() {
-            if t.typ != expected && is_line_terminator(&t) {
-                self.diagnostics.push(ErrorKind::UnexpectedToken(t).into());
-            }
+        match self.lexer.next() {
+            Some(ref t) if t.typ != expected && is_line_terminator(t) => {
+                self.diagnostics.push(ErrorKind::UnexpectedToken(t.line, t.column).into());
+            },
+            None if expected != TokenType::Semicolon => {
+                self.diagnostics.push(ErrorKind::UnexpectedEof.into());
+            },
+            _ => (),
         }
     }
 }
@@ -159,14 +163,27 @@ mod tests {
     }
 
     #[test]
-    fn inserts_semicolon() {
+    fn inserts_semicolon_at_newline() {
         let res = parse("debugger\n");
         assert_eq!(res.body.len(), 1);
+    }
+
+    #[test]
+    fn inserts_semicolon_at_eof() {
+        verify_single("debugger");
     }
 
     fn parse(input: &str) -> Script {
         let lexer = Lexer::new(input.chars());
         let mut parser = Parser::new(lexer);
         parser.script()
+    }
+
+    fn verify_single(input: &str) {
+        let lexer = Lexer::new(input.chars());
+        let mut parser = Parser::new(lexer);
+        let res = parser.script();
+        assert_eq!(parser.diagnostics.len(), 0, "parse error");
+        assert_eq!(res.body.len(), 1, "Expected exactly one node to be parsed");
     }
 }
