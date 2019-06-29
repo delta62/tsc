@@ -623,6 +623,19 @@ where I: Iterator<Item = char>,
         Ok(s)
     }
 
+    fn line_terminator_sequence(&mut self) -> TokenType {
+        if self.stream.skip_if('\u{000D}') {
+            if self.stream.skip_if('\u{000A}') {
+                TokenType::LineTerminator("\u{000D}\u{000A}".to_string())
+            } else {
+                TokenType::LineTerminator("\u{000D}".to_string())
+            }
+        } else {
+            let next = self.stream.next().unwrap();
+            TokenType::LineTerminator(next.to_string())
+        }
+    }
+
     fn regex(&mut self, loc: Location) -> Result<Token> {
         self.stream.skip_char();
         let mut body = String::new();
@@ -708,6 +721,7 @@ where I: Iterator<Item = char>
             let next = self.stream.peek().map(|next| {
                 match next {
                     x if is_ws(x)           => Ok(Token::new(loc, self.ws())),
+                    x if is_line_terminator(x) => Ok(Token::new(loc, self.line_terminator_sequence())),
                     x if x.is_ascii_digit() => self.digit().map(|x| Token::new(loc, x)),
                     x if is_id_start(x)     => self.identifier(loc),
                     '`'  => self.template(loc),

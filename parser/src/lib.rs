@@ -5,7 +5,7 @@ extern crate lexer;
 mod errors;
 
 use errors::*;
-use lexer::{Lexer,ReservedWord,TokenType};
+use lexer::{Lexer,ReservedWord,Token,TokenType};
 
 pub enum Assignment {
     ConditionalExpression,
@@ -86,7 +86,8 @@ where I: Iterator<Item = char> {
                     match t.typ {
                         TokenType::Semicolon => stmts.push(StatementListItem::Statement(Statement::EmptyStatement)),
                         TokenType::LeftBrace => stmts.push(StatementListItem::Statement(self.block())),
-                        TokenType::Identifier(_, Some(ReservedWord::Debugger)) => stmts.push(StatementListItem::Statement(self.debugger())),
+                        TokenType::Identifier(_, Some(ReservedWord::Debugger)) =>
+                            stmts.push(StatementListItem::Statement(self.debugger())),
                         _                    => self.diagnostics.push(ErrorKind::UnexpectedToken(t).into()),
                     }
                 },
@@ -109,10 +110,17 @@ where I: Iterator<Item = char> {
 
     fn expect_next(&mut self, expected: TokenType) {
         if let Some(t) = self.lexer.next() {
-            if t.typ != expected {
+            if t.typ != expected && is_line_terminator(&t) {
                 self.diagnostics.push(ErrorKind::UnexpectedToken(t).into());
             }
         }
+    }
+}
+
+fn is_line_terminator(token: &Token) -> bool {
+    match token.typ {
+        TokenType::LineTerminator(_) => true,
+        _ => false,
     }
 }
 
@@ -147,6 +155,12 @@ mod tests {
     #[test]
     fn parses_debug_statement() {
         let res = parse("debugger;");
+        assert_eq!(res.body.len(), 1);
+    }
+
+    #[test]
+    fn inserts_semicolon() {
+        let res = parse("debugger\n");
         assert_eq!(res.body.len(), 1);
     }
 
