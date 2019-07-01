@@ -24,9 +24,22 @@ pub enum StatementListItem {
     Declaration(Declaration),
 }
 
+pub struct VariableDeclaration {
+    pub identifier: String,
+    pub initializer: Option<AssignmentExpression>,
+}
+
+pub enum AssignmentExpression {
+    ConditionalExpression,
+    YieldExpression,
+    ArrowFunction,
+    AsyncArrowFunction,
+    // TODO LeftHandSideExpression,
+}
+
 pub enum Statement {
     BlockStatement(Vec<StatementListItem>),
-    VariableStatement,
+    VariableStatement(Vec<VariableDeclaration>),
     EmptyStatement,
     ExpressionStatement,
     IfStatement,
@@ -88,6 +101,8 @@ where I: Iterator<Item = char> {
                         TokenType::LeftBrace => stmts.push(StatementListItem::Statement(self.block())),
                         TokenType::Identifier(_, Some(ReservedWord::Debugger)) =>
                             stmts.push(StatementListItem::Statement(self.debugger())),
+                        TokenType::Identifier(_, Some(ReservedWord::Var)) =>
+                            stmts.push(StatementListItem::Statement(self.var_statement())),
                         _                    => self.diagnostics.push(ErrorKind::UnexpectedToken(t.line, t.column).into()),
                     }
                 },
@@ -106,6 +121,32 @@ where I: Iterator<Item = char> {
     fn debugger(&mut self) -> Statement {
         self.expect_next(TokenType::Semicolon);
         Statement::DebuggerStatement
+    }
+
+    fn var_statement(&mut self) -> Statement {
+        let mut decls = Vec::new();
+        let id = match self.lexer.next() {
+            Some(t) => {
+                match t.typ {
+                    TokenType::Identifier(x, Some(ReservedWord::Yield))
+                    | TokenType::Identifier(x, Some(ReservedWord::Await))
+                    | TokenType::Identifier(x, None) => Some(x),
+                    _ => None
+                }
+            },
+            None => None,
+        };
+
+        id.map(|id| {
+            decls.push(VariableDeclaration {
+                identifier: id,
+                initializer: None,
+            });
+        });
+
+        self.expect_next(TokenType::Semicolon);
+
+        Statement::VariableStatement(decls)
     }
 
     fn expect_next(&mut self, expected: TokenType) {
@@ -171,6 +212,21 @@ mod tests {
     #[test]
     fn inserts_semicolon_at_eof() {
         verify_single("debugger");
+    }
+
+    #[test]
+    fn parses_var_stmt() {
+        verify_single("var test;");
+    }
+
+    #[test]
+    fn allows_var_named_yield() {
+        verify_single("var yield;");
+    }
+
+    #[test]
+    fn allows_var_named_await() {
+        verify_single("var await;");
     }
 
     fn parse(input: &str) -> Script {

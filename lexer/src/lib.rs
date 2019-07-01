@@ -761,7 +761,12 @@ where I: Iterator<Item = char>
             });
 
             match next {
-                Some(Ok(t))  => return Some(t),
+                Some(Ok(t))  => {
+                    match t.typ {
+                        TokenType::WhiteSpace(_) => (),
+                        _ => return Some(t),
+                    }
+                },
                 Some(Err(e)) => self.diagnostics.push(e),
                 None         => return None,
             }
@@ -773,10 +778,10 @@ where I: Iterator<Item = char>
 mod tests {
     use super::*;
 
-    #[test]
-    fn identifies_whitespace() {
-        verify_single(" \t\t ");
-    }
+    // #[test]
+    // fn identifies_whitespace() {
+    //     verify_single(" \t\t ");
+    // }
 
     #[test]
     fn identifies_comments() {
