@@ -3,69 +3,11 @@ extern crate error_chain;
 extern crate lexer;
 
 mod errors;
+mod node;
 
 use errors::*;
 use lexer::{Lexer,ReservedWord,Token,TokenType};
-
-pub enum Assignment {
-    ConditionalExpression,
-    YieldExpression,
-    ArrowFunction,
-    AsyncArrowFunction,
-    LeftHandSideExpression,
-}
-
-pub struct Script {
-    pub body: Vec<StatementListItem>,
-}
-
-pub enum StatementListItem {
-    Statement(Statement),
-    Declaration(Declaration),
-}
-
-pub struct VariableDeclaration {
-    pub identifier: String,
-    pub initializer: Option<AssignmentExpression>,
-}
-
-pub enum AssignmentExpression {
-    ConditionalExpression,
-    YieldExpression,
-    ArrowFunction,
-    AsyncArrowFunction,
-    // TODO LeftHandSideExpression,
-}
-
-pub enum Statement {
-    BlockStatement(Vec<StatementListItem>),
-    VariableStatement(Vec<VariableDeclaration>),
-    EmptyStatement,
-    ExpressionStatement,
-    IfStatement,
-    BreakableStatement,
-    ContinueStatement,
-    BreakStatement,
-    ReturnStatement,
-    WithStatement,
-    LabelledStatement,
-    ThrowStatement,
-    TryStatement,
-    DebuggerStatement,
-}
-
-pub enum Declaration {
-    HoistableDeclaration(HoistableDeclaration),
-    ClassDeclaration,
-    LexicalDeclaration,
-}
-
-pub enum HoistableDeclaration {
-    FunctionDeclaration,
-    GeneratorDefinition,
-    AsyncFunctionDefinition,
-    AsyncGeneratorDefinition,
-}
+use node::Node;
 
 pub struct Parser<I>
 where I: Iterator<Item = char> {
@@ -86,85 +28,60 @@ where I: Iterator<Item = char> {
         &self.diagnostics
     }
 
-    pub fn script(&mut self) -> Script {
+    pub fn script(&mut self) -> Node {
         let statements = self.statement_list();
-        Script { body: statements }
+        let script = Node::Script(statements);
+        if let Some(t) = self.lexer.next() {
+            self.diagnostics.push(ErrorKind::UnexpectedToken(t.line, t.column).into());
+        }
+        script
     }
 
-    fn statement_list(&mut self) -> Vec<StatementListItem> {
-        let mut stmts = Vec::new();
+    fn statement_list(&mut self) -> Vec<Node> {
+        self.comma_separated_list(|x| {
+            match &x {
+                &TokenType::Semicolon                 => Ok(Node::EmptyStatement),
+                x if rw(x, &ReservedWord::Debugger) => self.debugger_statement(),
+                _                                    => Err(ErrorKind::UnexpectedToken(0, 0).into())
+            }
+        })
+    }
+
+    fn debugger_statement(&mut self) -> Result<Node> {
+        self.semicolon();
+        Ok(Node::DebuggerStatement)
+    }
+
+    fn semicolon(&mut self) {
+
+    }
+
+    fn comma_separated_list<P>(&mut self, parser: P) -> Vec<Node>
+    where P: FnMut(TokenType) -> Result<Node>,
+    {
+        let mut items = Vec::new();
         loop {
             match self.lexer.next() {
                 Some(t) => {
-                    match t.typ {
-                        TokenType::Semicolon => stmts.push(StatementListItem::Statement(Statement::EmptyStatement)),
-                        TokenType::LeftBrace => stmts.push(StatementListItem::Statement(self.block())),
-                        TokenType::Identifier(_, Some(ReservedWord::Debugger)) =>
-                            stmts.push(StatementListItem::Statement(self.debugger())),
-                        TokenType::Identifier(_, Some(ReservedWord::Var)) =>
-                            stmts.push(StatementListItem::Statement(self.var_statement())),
-                        _                    => self.diagnostics.push(ErrorKind::UnexpectedToken(t.line, t.column).into()),
+                    match parser(t.typ) {
+                        Ok(n) => items.push(n),
+                        Err(e) => self.diagnostics.push(e),
+                    }
+                    match self.lexer.next() {
+                        Some(Token { line: _, column: _, typ: TokenType::Comma }) => (),
+                        _ => break,
                     }
                 },
                 None => break,
             }
         }
-        stmts
-    }
-
-    fn block(&mut self) -> Statement {
-        let statements = self.statement_list();
-        self.expect_next(TokenType::RightBrace);
-        Statement::BlockStatement(statements)
-    }
-
-    fn debugger(&mut self) -> Statement {
-        self.expect_next(TokenType::Semicolon);
-        Statement::DebuggerStatement
-    }
-
-    fn var_statement(&mut self) -> Statement {
-        let mut decls = Vec::new();
-        let id = match self.lexer.next() {
-            Some(t) => {
-                match t.typ {
-                    TokenType::Identifier(x, Some(ReservedWord::Yield))
-                    | TokenType::Identifier(x, Some(ReservedWord::Await))
-                    | TokenType::Identifier(x, None) => Some(x),
-                    _ => None
-                }
-            },
-            None => None,
-        };
-
-        id.map(|id| {
-            decls.push(VariableDeclaration {
-                identifier: id,
-                initializer: None,
-            });
-        });
-
-        self.expect_next(TokenType::Semicolon);
-
-        Statement::VariableStatement(decls)
-    }
-
-    fn expect_next(&mut self, expected: TokenType) {
-        match self.lexer.next() {
-            Some(ref t) if t.typ != expected && is_line_terminator(t) => {
-                self.diagnostics.push(ErrorKind::UnexpectedToken(t.line, t.column).into());
-            },
-            None if expected != TokenType::Semicolon => {
-                self.diagnostics.push(ErrorKind::UnexpectedEof.into());
-            },
-            _ => (),
-        }
+        items
     }
 }
 
-fn is_line_terminator(token: &Token) -> bool {
-    match token.typ {
-        TokenType::LineTerminator(_) => true,
+fn rw(actual: &TokenType, expected: &ReservedWord) -> bool {
+    match actual {
+        TokenType::Identifier(_, Some(x)) if x == expected => true,
         _ => false,
     }
 }
