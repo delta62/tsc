@@ -28,61 +28,34 @@ where I: Iterator<Item = char> {
         &self.diagnostics
     }
 
+    fn unexpected_token(&mut self, token: Token) {
+        self.diagnostics.push(ErrorKind::UnexpectedToken(token.line, token.column).into());
+    }
+
     pub fn script(&mut self) -> Node {
         let statements = self.statement_list();
         let script = Node::Script(statements);
         if let Some(t) = self.lexer.next() {
-            self.diagnostics.push(ErrorKind::UnexpectedToken(t.line, t.column).into());
+            self.unexpected_token(t);
         }
         script
     }
 
     fn statement_list(&mut self) -> Vec<Node> {
-        self.comma_separated_list(|x| {
-            match &x {
-                &TokenType::Semicolon                 => Ok(Node::EmptyStatement),
-                x if rw(x, &ReservedWord::Debugger) => self.debugger_statement(),
-                _                                    => Err(ErrorKind::UnexpectedToken(0, 0).into())
-            }
-        })
+        // (Statement | Declaration)*
+        Vec::new()
+    }
+
+    fn empty_statement(&mut self) -> Result<Node> {
+        self.semicolon().map(|()| Node::EmptyStatement)
     }
 
     fn debugger_statement(&mut self) -> Result<Node> {
-        self.semicolon();
-        Ok(Node::DebuggerStatement)
+        self.semicolon().map(|()| Node::DebuggerStatement)
     }
 
-    fn semicolon(&mut self) {
-
-    }
-
-    fn comma_separated_list<P>(&mut self, parser: P) -> Vec<Node>
-    where P: FnMut(TokenType) -> Result<Node>,
-    {
-        let mut items = Vec::new();
-        loop {
-            match self.lexer.next() {
-                Some(t) => {
-                    match parser(t.typ) {
-                        Ok(n) => items.push(n),
-                        Err(e) => self.diagnostics.push(e),
-                    }
-                    match self.lexer.next() {
-                        Some(Token { line: _, column: _, typ: TokenType::Comma }) => (),
-                        _ => break,
-                    }
-                },
-                None => break,
-            }
-        }
-        items
-    }
-}
-
-fn rw(actual: &TokenType, expected: &ReservedWord) -> bool {
-    match actual {
-        TokenType::Identifier(_, Some(x)) if x == expected => true,
-        _ => false,
+    fn semicolon(&mut self) -> Result<()> {
+        Ok(())
     }
 }
 
