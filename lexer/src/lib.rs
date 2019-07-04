@@ -4,7 +4,6 @@ extern crate unicode;
 
 mod charclass;
 mod errors;
-mod lexstream;
 mod location;
 mod token;
 mod tokens;
@@ -12,17 +11,17 @@ mod tokens;
 pub use self::tokens::Tokens;
 pub use self::token::Token;
 
-pub struct Lexer {
-    input: String,
+pub struct Lexer<'a> {
+    input: &'a str,
 }
 
-impl Lexer {
-    pub fn from_string(input: String) -> Lexer {
+impl <'a> Lexer<'a> {
+    pub fn with_str(input: &str) -> Lexer {
         Lexer { input }
     }
 }
 
-impl <'a> IntoIterator for Lexer {
+impl <'a> IntoIterator for Lexer<'a> {
     type Item = Token;
     type IntoIter = Tokens<'a>;
 

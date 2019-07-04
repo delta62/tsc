@@ -1,13 +1,13 @@
 error_chain! {
     errors {
-        UnexpectedEof(line: u32, column: u32) {
+        UnexpectedEof(location: usize) {
             description("unexpected end of file")
-            display("Unexpected end of file at {}:{}", line, column)
+            display("Unexpected end of file at {}", location)
         }
 
-        UnexpectedChar(c: char, line: u32, column: u32) {
+        UnexpectedChar(c: char, location: usize) {
             description("unexpected character")
-            display("Unexpected character '{}' at {}:{}", c, line, column)
+            display("Unexpected character '{}' at {}", c, location)
         }
 
         InvalidCodePoint(val: String, line: u32, column: u32) {
