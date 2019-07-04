@@ -7,12 +7,20 @@ use super::tokentype::TokenType;
 
 pub struct Tokens<'a> {
     input: Peekable<Enumerate<Chars<'a>>>,
+    diagnostics: Vec<Error>,
 }
 
 impl <'a> Tokens<'a> {
     pub fn new(input: &'a str) -> Tokens<'a> {
         let stream = input.chars().enumerate().peekable();
-        Tokens { input: stream }
+        Tokens {
+            input: stream,
+            diagnostics: Vec::new(),
+        }
+    }
+
+    pub fn diagnostics(&self) -> &Vec<Error> {
+        &self.diagnostics
     }
 
     fn unexpected_char(idx: usize, c: char) -> Result<Token> {
@@ -33,22 +41,20 @@ impl <'a> Iterator for Tokens<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            let t = match self.input.next() {
-                Some((i, '/')) => token(i, self.slash()),
-                Some((i, c))   => Some(Tokens::unexpected_char(i, c)),
-                None => None,
-            };
+            let t = self.input.next().map(|x| match x {
+                (i, '/') => token(i, self.slash()),
+                (i, c)   => Tokens::unexpected_char(i, c),
+            });
 
             match t {
                 Some(Ok(x))  => return Some(x),
-                Some(Err(_)) => (),
+                Some(Err(e)) => self.diagnostics.push(e),
                 None         => return None,
             }
         }
     }
 }
 
-fn token(location: usize, maybe: Result<TokenType>) -> Option<Result<Token>> {
-    let result = maybe.map(|x| Token::new(location, x));
-    Some(result)
+fn token(location: usize, maybe: Result<TokenType>) -> Result<Token> {
+    maybe.map(|x| Token::new(location, x))
 }
