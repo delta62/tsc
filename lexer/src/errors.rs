@@ -1,8 +1,8 @@
 error_chain! {
     errors {
-        UnexpectedEof(location: usize) {
+        UnexpectedEof {
             description("unexpected end of file")
-            display("Unexpected end of file at {}", location)
+            display("Unexpected end of file")
         }
 
         UnexpectedChar(c: char, location: usize) {

@@ -2,7 +2,8 @@ use std::iter::{Enumerate,Peekable};
 use std::str::Chars;
 
 use super::errors::*;
-use super::token::{Token};
+use super::token::Token;
+use super::tokentype::TokenType;
 
 pub struct Tokens<'a> {
     input: Peekable<Enumerate<Chars<'a>>>,
@@ -18,12 +19,12 @@ impl <'a> Tokens<'a> {
         Err(ErrorKind::UnexpectedChar(c, idx).into())
     }
 
-    fn unexpected_eof(idx: usize) -> Result<Token> {
-        Err(ErrorKind::UnexpectedEof(idx).into())
+    fn unexpected_eof() -> Result<Token> {
+        Err(ErrorKind::UnexpectedEof.into())
     }
 
-    fn slash(&mut self, idx: usize) -> Result<Token> {
-        Err(ErrorKind::UnexpectedEof(idx).into())
+    fn slash(&mut self) -> Result<TokenType> {
+        Err(ErrorKind::UnexpectedEof.into())
     }
 }
 
@@ -34,7 +35,7 @@ impl <'a> Iterator for Tokens<'a> {
         loop {
             let t = match self.input.next() {
                 Some((i, '/')) => token(i, self.slash()),
-                Some((i, c))   => Tokens::unexpected_char(i, c),
+                Some((i, c))   => Some(Tokens::unexpected_char(i, c)),
                 None => None,
             };
 
@@ -48,6 +49,6 @@ impl <'a> Iterator for Tokens<'a> {
 }
 
 fn token(location: usize, maybe: Result<TokenType>) -> Option<Result<Token>> {
-    maybe
-        .map(|x| Token::new(location, x))
+    let result = maybe.map(|x| Token::new(location, x));
+    Some(result)
 }

@@ -2,14 +2,16 @@
 extern crate error_chain;
 extern crate unicode;
 
-mod charclass;
+// mod charclass;
 mod errors;
-mod location;
+mod reservedword;
 mod token;
 mod tokens;
+mod tokentype;
 
-pub use self::tokens::Tokens;
 pub use self::token::Token;
+pub use self::tokens::Tokens;
+pub use self::tokentype::TokenType;
 
 pub struct Lexer<'a> {
     input: &'a str,
