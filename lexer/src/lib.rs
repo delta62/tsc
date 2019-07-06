@@ -2,7 +2,7 @@
 extern crate error_chain;
 extern crate unicode;
 
-// mod charclass;
+mod charclass;
 mod errors;
 mod reservedword;
 mod token;
