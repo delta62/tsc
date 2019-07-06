@@ -1,10 +1,10 @@
 use std::iter::{Enumerate,Peekable};
 use std::str::Chars;
 
-use super::charclass::is_line_terminator;
+use super::charclass::{is_id_start,is_line_terminator,is_ws};
 use super::errors::*;
 use super::token::Token;
-use super::tokentype::TokenType;
+use super::tokentype::{QuoteStyle,TokenType};
 
 pub struct Tokens<'a> {
     input: Peekable<Enumerate<Chars<'a>>>,
@@ -50,7 +50,7 @@ impl <'a> Tokens<'a> {
     }
 
     fn slash(&mut self) -> Result<TokenType> {
-        Err(ErrorKind::UnexpectedEof.into())
+        Err(ErrorKind::NotImplemented.into())
     }
 
     fn minus(&mut self) -> TokenType {
@@ -180,6 +180,30 @@ impl <'a> Tokens<'a> {
             TokenType::LineTerminator(c.to_string())
         }
     }
+
+    fn period(&mut self) -> Result<TokenType> {
+        Err(ErrorKind::NotImplemented.into())
+    }
+
+    fn digit(&mut self) -> Result<TokenType> {
+        Err(ErrorKind::NotImplemented.into())
+    }
+
+    fn template(&mut self) -> Result<TokenType> {
+        Err(ErrorKind::NotImplemented.into())
+    }
+
+    fn string(&mut self, quote: QuoteStyle) -> Result<TokenType> {
+        Err(ErrorKind::NotImplemented.into())
+    }
+
+    fn identifier(&mut self, first: char) -> Result<TokenType> {
+        Err(ErrorKind::NotImplemented.into())
+    }
+
+    fn whitespace(&mut self, first: char) -> Result<TokenType> {
+        Err(ErrorKind::NotImplemented.into())
+    }
 }
 
 impl <'a> Iterator for Tokens<'a> {
@@ -214,6 +238,19 @@ impl <'a> Iterator for Tokens<'a> {
 
                 // Context sensitive
                 (i, '/') => token(i, self.slash()),
+                (i, '.') => token(i, self.period()),
+
+                // Literals
+                (i, d) if d.is_ascii_digit() => token(i, self.digit()),
+                (i, '`')  => token(i, self.template()),
+                (i, '\'') => token(i, self.string(QuoteStyle::Single)),
+                (i, '"')  => token(i, self.string(QuoteStyle::Double)),
+
+                // Identifiers
+                (i, x) if is_id_start(x) => token(i, self.identifier(x)),
+
+                // Whitespace
+                (i, x) if is_ws(x) => token(i, self.whitespace(x)),
 
                 // Newlines
                 (i, x) if is_line_terminator(x) => token(i, Ok(self.line_terminator_sequence(x))),

@@ -5,6 +5,11 @@ error_chain! {
             display("Unexpected end of file")
         }
 
+        NotImplemented {
+            description("not implemented")
+            display("Not implemented")
+        }
+
         UnexpectedChar(c: char, location: usize) {
             description("unexpected character")
             display("Unexpected character '{}' at {}", c, location)
