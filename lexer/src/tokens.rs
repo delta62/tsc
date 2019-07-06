@@ -48,6 +48,20 @@ impl <'a> Tokens<'a> {
             _ => TokenType::Minus,
         }
     }
+
+    fn plus(&mut self) -> TokenType {
+        match self.input.peek() {
+            Some((_, '+')) => {
+                self.input.next();
+                TokenType::Increment
+            },
+            Some((_, '=')) => {
+                self.input.next();
+                TokenType::PlusEquals
+            },
+            _ => TokenType::Plus,
+        }
+    }
 }
 
 impl <'a> Iterator for Tokens<'a> {
@@ -58,6 +72,7 @@ impl <'a> Iterator for Tokens<'a> {
             let t = self.input.next().map(|x| match x {
                 (i, '/') => token(i, self.slash()),
                 (i, '-') => token(i, Ok(self.minus())),
+                (i, '+') => token(i, Ok(self.plus())),
                 (i, c)   => Tokens::unexpected_char(i, c),
             });
 
