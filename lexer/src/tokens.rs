@@ -31,35 +31,56 @@ impl <'a> Tokens<'a> {
         Err(ErrorKind::UnexpectedEof.into())
     }
 
+    fn skip_yield(&mut self, result: TokenType) -> TokenType {
+        self.input.next();
+        result
+    }
+
+    fn peek_char(&mut self) -> Option<char> {
+        match self.input.peek() {
+            Some((_, c)) => Some(*c),
+            None         => None,
+        }
+    }
+
     fn slash(&mut self) -> Result<TokenType> {
         Err(ErrorKind::UnexpectedEof.into())
     }
 
     fn minus(&mut self) -> TokenType {
-        match self.input.peek() {
-            Some((_, '-')) => {
-                self.input.next();
-                TokenType::Decrement
-            },
-            Some((_, '=')) => {
-                self.input.next();
-                TokenType::MinusEquals
-            },
-            _ => TokenType::Minus,
+        match self.peek_char() {
+            Some('-') => self.skip_yield(TokenType::Decrement),
+            Some('=') => self.skip_yield(TokenType::MinusEquals),
+            _         => TokenType::Minus,
         }
     }
 
     fn plus(&mut self) -> TokenType {
-        match self.input.peek() {
-            Some((_, '+')) => {
+        match self.peek_char() {
+            Some('+') => self.skip_yield(TokenType::Increment),
+            Some('=') => self.skip_yield(TokenType::Plus),
+            _         => TokenType::Plus,
+        }
+    }
+
+    fn percent(&mut self) -> TokenType {
+        match self.peek_char() {
+            Some('=') => self.skip_yield(TokenType::PercentEquals),
+            _         => TokenType::Percent
+        }
+    }
+
+    fn asterisk(&mut self) -> TokenType {
+        match self.peek_char() {
+            Some('*') => {
                 self.input.next();
-                TokenType::Increment
+                match self.peek_char() {
+                    Some('*') => self.skip_yield(TokenType::PowerEquals),
+                    _         => TokenType::Power,
+                }
             },
-            Some((_, '=')) => {
-                self.input.next();
-                TokenType::PlusEquals
-            },
-            _ => TokenType::Plus,
+            Some('=') => self.skip_yield(TokenType::TimesEquals),
+            _         => TokenType::Times,
         }
     }
 }
@@ -73,6 +94,8 @@ impl <'a> Iterator for Tokens<'a> {
                 (i, '/') => token(i, self.slash()),
                 (i, '-') => token(i, Ok(self.minus())),
                 (i, '+') => token(i, Ok(self.plus())),
+                (i, '%') => token(i, Ok(self.percent())),
+                (i, '*') => token(i, Ok(self.asterisk())),
                 (i, c)   => Tokens::unexpected_char(i, c),
             });
 
