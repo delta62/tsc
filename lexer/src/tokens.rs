@@ -34,6 +34,20 @@ impl <'a> Tokens<'a> {
     fn slash(&mut self) -> Result<TokenType> {
         Err(ErrorKind::UnexpectedEof.into())
     }
+
+    fn minus(&mut self) -> TokenType {
+        match self.input.peek() {
+            Some((_, '-')) => {
+                self.input.next();
+                TokenType::Decrement
+            },
+            Some((_, '=')) => {
+                self.input.next();
+                TokenType::MinusEquals
+            },
+            _ => TokenType::Minus,
+        }
+    }
 }
 
 impl <'a> Iterator for Tokens<'a> {
@@ -43,6 +57,7 @@ impl <'a> Iterator for Tokens<'a> {
         loop {
             let t = self.input.next().map(|x| match x {
                 (i, '/') => token(i, self.slash()),
+                (i, '-') => token(i, Ok(self.minus())),
                 (i, c)   => Tokens::unexpected_char(i, c),
             });
 
