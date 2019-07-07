@@ -1,10 +1,10 @@
 use std::iter::{Enumerate,Peekable};
 use std::str::Chars;
 
-use super::charclass::{is_id_start,is_line_terminator,is_ws};
+use super::charclass::{is_id_continue,is_id_start,is_line_terminator,is_ws};
 use super::errors::*;
 use super::token::Token;
-use super::tokentype::{QuoteStyle,TokenType};
+use super::tokentype::{Identifier,QuoteStyle,TokenType};
 
 pub struct Tokens<'a> {
     input: Peekable<Enumerate<Chars<'a>>>,
@@ -40,6 +40,13 @@ impl <'a> Tokens<'a> {
     fn peek_char(&mut self) -> Option<char> {
         match self.input.peek() {
             Some((_, c)) => Some(*c),
+            None         => None,
+        }
+    }
+
+    fn next_char(&mut self) -> Option<char> {
+        match self.input.next() {
+            Some((_, c)) => Some(c),
             None         => None,
         }
     }
@@ -182,27 +189,96 @@ impl <'a> Tokens<'a> {
     }
 
     fn period(&mut self) -> Result<TokenType> {
-        Err(ErrorKind::NotImplemented.into())
+        match self.peek_char() {
+            Some('.') => {
+                self.input.next();
+                match self.input.next() {
+                    Some((_, '.')) => Ok(TokenType::Ellipsis),
+                    Some((i, c))   => Err(ErrorKind::UnexpectedChar(c, i).into()),
+                    None           => Err(ErrorKind::UnexpectedEof.into()),
+                }
+            },
+            Some(c) if c.is_ascii_hexdigit() => self.decimal(c).map(|x| TokenType::Number(x)),
+            _ => Ok(TokenType::Period)
+        }
     }
 
     fn digit(&mut self) -> Result<TokenType> {
         Err(ErrorKind::NotImplemented.into())
     }
 
-    fn template(&mut self) -> Result<TokenType> {
+    fn decimal(&mut self, first: char) -> Result<String> {
         Err(ErrorKind::NotImplemented.into())
+    }
+
+    fn template(&mut self) -> Result<TokenType> {
+        let mut s = String::new();
+        loop {
+            match self.next_char() {
+                Some('$') => {
+                    s.push('$');
+                    match self.peek_char() {
+                        Some(c) => {
+                            s.push(c);
+                            if c == '{' {
+                                break
+                            }
+                        },
+                        None => return Err(ErrorKind::UnexpectedEof.into())
+                    }
+                },
+                Some('\\') => {
+                    s.push('\\');
+                    match self.next_char() {
+                        Some(c) => s.push(c),
+                        None    => return Err(ErrorKind::UnexpectedEof.into())
+                    }
+                },
+                Some('`') => {
+                    s.push('`');
+                    break
+                },
+                Some(c) => s.push(c),
+                None => return Err(ErrorKind::UnexpectedEof.into()),
+            }
+        }
+        s.shrink_to_fit();
+        Ok(TokenType::Template(s))
     }
 
     fn string(&mut self, quote: QuoteStyle) -> Result<TokenType> {
-        Err(ErrorKind::NotImplemented.into())
+        let mut s = String::new();
+        loop {
+            match self.input.next() {
+                Some((_, '\'')) if quote == QuoteStyle::Single => break,
+                Some((_, '"'))  if quote == QuoteStyle::Double => break,
+                Some((i, c))    if is_line_terminator(c)       => return Err(ErrorKind::UnexpectedChar(c, i).into()),
+                Some((_, '\\'))                                => return Err(ErrorKind::NotImplemented.into()),
+                None                                           => return Err(ErrorKind::UnexpectedEof.into()),
+                Some((_, c))                                   => s.push(c),
+            }
+        }
+        s.shrink_to_fit();
+        Ok(TokenType::String(s, quote))
     }
 
-    fn identifier(&mut self, first: char) -> Result<TokenType> {
-        Err(ErrorKind::NotImplemented.into())
+    // TODO escape sequences
+    fn identifier(&mut self, first: char) -> TokenType {
+        let mut s = first.to_string();
+        while self.peek_char().map_or(false, is_id_continue) {
+            s.push(self.next_char().unwrap());
+        }
+        s.shrink_to_fit();
+        TokenType::Identifier(Identifier::Id(s))
     }
 
-    fn whitespace(&mut self, first: char) -> Result<TokenType> {
-        Err(ErrorKind::NotImplemented.into())
+    fn whitespace(&mut self, first: char) -> TokenType {
+        let mut s = first.to_string();
+        while self.peek_char().map_or(false, is_ws) {
+            s.push(self.next_char().unwrap());
+        }
+        s.shrink_to_fit();
+        TokenType::WhiteSpace(s)
     }
 }
 
@@ -247,10 +323,10 @@ impl <'a> Iterator for Tokens<'a> {
                 (i, '"')  => token(i, self.string(QuoteStyle::Double)),
 
                 // Identifiers
-                (i, x) if is_id_start(x) => token(i, self.identifier(x)),
+                (i, x) if is_id_start(x) => token(i, Ok(self.identifier(x))),
 
                 // Whitespace
-                (i, x) if is_ws(x) => token(i, self.whitespace(x)),
+                (i, x) if is_ws(x) => token(i, Ok(self.whitespace(x))),
 
                 // Newlines
                 (i, x) if is_line_terminator(x) => token(i, Ok(self.line_terminator_sequence(x))),
