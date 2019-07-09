@@ -28,13 +28,29 @@ impl <'a> Tokens<'a> {
         Err(ErrorKind::UnexpectedChar(c, idx).into())
     }
 
-    fn unexpected_eof() -> Result<Token> {
-        Err(ErrorKind::UnexpectedEof.into())
-    }
-
     fn skip_yield(&mut self, result: TokenType) -> TokenType {
         self.input.next();
         result
+    }
+
+    fn expect<P>(&mut self, predicate: P) -> Result<char>
+    where P: FnOnce(char) -> bool {
+        self.input.next()
+            .ok_or(ErrorKind::UnexpectedEof.into())
+            .and_then(|(i, x)| {
+                if predicate(x) {
+                    Ok(x)
+                } else {
+                    Err(ErrorKind::UnexpectedChar(x, i).into())
+                }
+            })
+    }
+
+    fn do_while<P, A>(&mut self, predicate: P, mut action: A)
+    where P: Fn(char) -> bool, A: FnMut(char) {
+        while self.peek_char().map_or(false, |x| predicate(x)) {
+            action(self.next_char().unwrap());
+        }
     }
 
     fn peek_char(&mut self) -> Option<char> {
@@ -198,17 +214,74 @@ impl <'a> Tokens<'a> {
                     None           => Err(ErrorKind::UnexpectedEof.into()),
                 }
             },
-            Some(c) if c.is_ascii_hexdigit() => self.decimal(c).map(|x| TokenType::Number(x)),
+            Some(c) if c.is_ascii_hexdigit() => self.decimal().map(|x| TokenType::Number(x)),
             _ => Ok(TokenType::Period)
         }
     }
 
-    fn digit(&mut self) -> Result<TokenType> {
-        Err(ErrorKind::NotImplemented.into())
+    fn digit(&mut self, first: char) -> Result<TokenType> {
+        if let '0' = first {
+            match self.peek_char() {
+                Some('x') | Some('X') => return self.hex_literal(),
+                Some('o') | Some('O') => return self.octal_literal(),
+                Some('b') | Some('B') => return self.binary_literal(),
+                _         => (),
+            }
+        }
+
+        let mut s = first.to_string();
+
+        s.shrink_to_fit();
+        Ok(TokenType::Number(s))
     }
 
-    fn decimal(&mut self, first: char) -> Result<String> {
-        Err(ErrorKind::NotImplemented.into())
+    // TODO 0 length escapes
+    fn hex_literal(&mut self) -> Result<TokenType> {
+        let mut s = format!("0{}", self.next_char().unwrap()).to_string();
+        while self.peek_char().map_or(false, |x| x.is_ascii_hexdigit()) {
+            s.push(self.next_char().unwrap());
+        }
+        s.shrink_to_fit();
+        Ok(TokenType::Number(s))
+    }
+
+    // TODO 0 length escapes
+    fn octal_literal(&mut self) -> Result<TokenType> {
+        let mut s = "0".to_string();
+        self.expect(|x| x.to_digit(8).is_some())
+            .map(|x| s.push(x))
+            .map(|()| {
+                self.do_while(|x| x.to_digit(8).is_some(), |x| s.push(x));
+                s.shrink_to_fit();
+                TokenType::Number(s)
+            })
+    }
+
+    // TODO 0 length escapes
+    fn binary_literal(&mut self) -> Result<TokenType> {
+        let mut s = format!("0{}", self.next_char().unwrap()).to_string();
+        while self.peek_char().map_or(false, |x| x.to_digit(2).is_some()) {
+            s.push(self.next_char().unwrap());
+        }
+        s.shrink_to_fit();
+        Ok(TokenType::Number(s))
+    }
+
+    // TODO exponent
+    fn decimal(&mut self) -> Result<String> {
+        let mut s = '.'.to_string();
+        match self.input.next() {
+            Some((_, c)) if c.is_ascii_digit() => {
+                s.push(c);
+                while self.peek_char().map_or(false, |c| c.is_ascii_digit()) {
+                    s.push(self.next_char().unwrap());
+                }
+                s.shrink_to_fit();
+                Ok(s)
+            },
+            Some((i, c)) => Err(ErrorKind::UnexpectedChar(c, i).into()),
+            None         => Err(ErrorKind::UnexpectedEof.into()),
+        }
     }
 
     fn template(&mut self) -> Result<TokenType> {
@@ -317,7 +390,7 @@ impl <'a> Iterator for Tokens<'a> {
                 (i, '.') => token(i, self.period()),
 
                 // Literals
-                (i, d) if d.is_ascii_digit() => token(i, self.digit()),
+                (i, d) if d.is_ascii_digit() => token(i, self.digit(d)),
                 (i, '`')  => token(i, self.template()),
                 (i, '\'') => token(i, self.string(QuoteStyle::Single)),
                 (i, '"')  => token(i, self.string(QuoteStyle::Double)),
