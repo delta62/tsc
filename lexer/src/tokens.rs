@@ -1,7 +1,7 @@
 use std::iter::{Enumerate,Peekable};
 use std::str::Chars;
 
-use super::charclass::{is_id_continue,is_id_start,is_line_terminator,is_ws};
+use super::charclass::{is_binary_digit,is_id_continue,is_id_start,is_line_terminator,is_octal_digit,is_ws};
 use super::errors::*;
 use super::token::Token;
 use super::tokentype::{Identifier,QuoteStyle,TokenType};
@@ -235,36 +235,34 @@ impl <'a> Tokens<'a> {
         Ok(TokenType::Number(s))
     }
 
-    // TODO 0 length escapes
     fn hex_literal(&mut self) -> Result<TokenType> {
-        let mut s = format!("0{}", self.next_char().unwrap()).to_string();
-        while self.peek_char().map_or(false, |x| x.is_ascii_hexdigit()) {
-            s.push(self.next_char().unwrap());
-        }
-        s.shrink_to_fit();
-        Ok(TokenType::Number(s))
-    }
-
-    // TODO 0 length escapes
-    fn octal_literal(&mut self) -> Result<TokenType> {
-        let mut s = "0".to_string();
-        self.expect(|x| x.to_digit(8).is_some())
-            .map(|x| s.push(x))
-            .map(|()| {
-                self.do_while(|x| x.to_digit(8).is_some(), |x| s.push(x));
+        self.expect(|x| x.is_ascii_hexdigit())
+            .map(|x| {
+                let mut s = format!("0{}", x);
+                self.do_while(|x| x.is_ascii_hexdigit(), |x| s.push(x));
                 s.shrink_to_fit();
                 TokenType::Number(s)
             })
     }
 
-    // TODO 0 length escapes
+    fn octal_literal(&mut self) -> Result<TokenType> {
+        self.expect(is_octal_digit)
+            .map(|x| {
+                let mut s = format!("0{}", x);
+                self.do_while(is_octal_digit, |x| s.push(x));
+                s.shrink_to_fit();
+                TokenType::Number(s)
+            })
+    }
+
     fn binary_literal(&mut self) -> Result<TokenType> {
-        let mut s = format!("0{}", self.next_char().unwrap()).to_string();
-        while self.peek_char().map_or(false, |x| x.to_digit(2).is_some()) {
-            s.push(self.next_char().unwrap());
-        }
-        s.shrink_to_fit();
-        Ok(TokenType::Number(s))
+        self.expect(is_binary_digit)
+            .map(|x| {
+                let mut s = format!("0{}", x);
+                self.do_while(is_binary_digit, |x| s.push(x));
+                s.shrink_to_fit();
+                TokenType::Number(s)
+            })
     }
 
     // TODO exponent
