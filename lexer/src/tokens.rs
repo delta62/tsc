@@ -281,18 +281,13 @@ impl <'a> Tokens<'a> {
 
     fn decimal(&mut self) -> Result<String> {
         let mut s = '.'.to_string();
-        match self.input.next() {
-            Some((_, c)) if c.is_ascii_digit() => {
+        self.expect(|c| c.is_ascii_digit())
+            .map(|c| {
                 s.push(c);
-                while self.peek_char().map_or(false, |c| c.is_ascii_digit()) {
-                    s.push(self.next_char().unwrap());
-                }
+                self.do_while(|c| c.is_ascii_digit(), |c| s.push(c));
                 s.shrink_to_fit();
-                Ok(s)
-            },
-            Some((i, c)) => Err(ErrorKind::UnexpectedChar(c, i).into()),
-            None         => Err(ErrorKind::UnexpectedEof.into()),
-        }
+                s
+            })
     }
 
     fn exponent(&mut self) -> Result<String> {
