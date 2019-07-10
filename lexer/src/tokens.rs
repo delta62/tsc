@@ -239,7 +239,8 @@ impl <'a> Tokens<'a> {
         }
 
         if let Some('e') | Some('E') = self.peek_char() {
-            s = s.and_then(|mut s| self.exponent().map(|e| s.push_str(&e)).map(|_| s));
+            let next = self.next_char().unwrap();
+            s = s.and_then(|mut s| self.exponent(next).map(|e| s.push_str(&e)).map(|_| s));
         }
 
         s.map(|mut s| {
@@ -286,8 +287,19 @@ impl <'a> Tokens<'a> {
         })
     }
 
-    fn exponent(&mut self) -> Result<String> {
-        Err(ErrorKind::UnexpectedEof.into())
+    fn exponent(&mut self, first: char) -> Result<String> {
+        let mut s = first.to_string();
+
+        if let Some('+') | Some('-') = self.peek_char() {
+            s.push(self.next_char().unwrap());
+        }
+
+        self.expect(|c| c.is_ascii_digit()).map(|c| {
+            s.push(c);
+            self.do_while(|c| c.is_ascii_digit(), |c| s.push(c));
+            s.shrink_to_fit();
+            s
+        })
     }
 
     fn template(&mut self) -> Result<TokenType> {
