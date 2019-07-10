@@ -230,9 +230,23 @@ impl <'a> Tokens<'a> {
         }
 
         let mut s = first.to_string();
+        self.do_while(|c| c.is_ascii_digit(), |c| s.push(c));
 
-        s.shrink_to_fit();
-        Ok(TokenType::Number(s))
+        let mut s = Ok(s);
+
+        if let Some('.') = self.peek_char() {
+            s = s.and_then(|mut s| self.decimal().map(|d| s.push_str(&d)).map(|_| s));
+        }
+
+        if let Some('e') | Some('E') = self.peek_char() {
+            s = s.and_then(|mut s| self.exponent().map(|e| s.push_str(&e)).map(|_| s));
+        }
+
+        s.map(|mut s| {
+            s.shrink_to_fit();
+            s
+        })
+        .map(|s| TokenType::Number(s))
     }
 
     fn hex_literal(&mut self) -> Result<TokenType> {
@@ -265,7 +279,6 @@ impl <'a> Tokens<'a> {
             })
     }
 
-    // TODO exponent
     fn decimal(&mut self) -> Result<String> {
         let mut s = '.'.to_string();
         match self.input.next() {
@@ -280,6 +293,10 @@ impl <'a> Tokens<'a> {
             Some((i, c)) => Err(ErrorKind::UnexpectedChar(c, i).into()),
             None         => Err(ErrorKind::UnexpectedEof.into()),
         }
+    }
+
+    fn exponent(&mut self) -> Result<String> {
+        Err(ErrorKind::UnexpectedEof.into())
     }
 
     fn template(&mut self) -> Result<TokenType> {
