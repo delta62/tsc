@@ -250,44 +250,40 @@ impl <'a> Tokens<'a> {
     }
 
     fn hex_literal(&mut self) -> Result<TokenType> {
-        self.expect(|x| x.is_ascii_hexdigit())
-            .map(|x| {
-                let mut s = format!("0{}", x);
-                self.do_while(|x| x.is_ascii_hexdigit(), |x| s.push(x));
-                s.shrink_to_fit();
-                TokenType::Number(s)
-            })
+        self.expect(|x| x.is_ascii_hexdigit()).map(|x| {
+            let mut s = format!("0{}", x);
+            self.do_while(|x| x.is_ascii_hexdigit(), |x| s.push(x));
+            s.shrink_to_fit();
+            TokenType::Number(s)
+        })
     }
 
     fn octal_literal(&mut self) -> Result<TokenType> {
-        self.expect(is_octal_digit)
-            .map(|x| {
-                let mut s = format!("0{}", x);
-                self.do_while(is_octal_digit, |x| s.push(x));
-                s.shrink_to_fit();
-                TokenType::Number(s)
-            })
+        self.expect(is_octal_digit).map(|x| {
+            let mut s = format!("0{}", x);
+            self.do_while(is_octal_digit, |x| s.push(x));
+            s.shrink_to_fit();
+            TokenType::Number(s)
+        })
     }
 
     fn binary_literal(&mut self) -> Result<TokenType> {
-        self.expect(is_binary_digit)
-            .map(|x| {
-                let mut s = format!("0{}", x);
-                self.do_while(is_binary_digit, |x| s.push(x));
-                s.shrink_to_fit();
-                TokenType::Number(s)
-            })
+        self.expect(is_binary_digit).map(|x| {
+            let mut s = format!("0{}", x);
+            self.do_while(is_binary_digit, |x| s.push(x));
+            s.shrink_to_fit();
+            TokenType::Number(s)
+        })
     }
 
     fn decimal(&mut self) -> Result<String> {
         let mut s = '.'.to_string();
-        self.expect(|c| c.is_ascii_digit())
-            .map(|c| {
-                s.push(c);
-                self.do_while(|c| c.is_ascii_digit(), |c| s.push(c));
-                s.shrink_to_fit();
-                s
-            })
+        self.expect(|c| c.is_ascii_digit()).map(|c| {
+            s.push(c);
+            self.do_while(|c| c.is_ascii_digit(), |c| s.push(c));
+            s.shrink_to_fit();
+            s
+        })
     }
 
     fn exponent(&mut self) -> Result<String> {
