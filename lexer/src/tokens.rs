@@ -225,13 +225,12 @@ impl <'a> Tokens<'a> {
                 Some('x') | Some('X') => return self.hex_literal(),
                 Some('o') | Some('O') => return self.octal_literal(),
                 Some('b') | Some('B') => return self.binary_literal(),
-                _         => (),
+                _ => (),
             }
         }
 
         let mut s = first.to_string();
         self.do_while(|c| c.is_ascii_digit(), |c| s.push(c));
-
         let mut s = Ok(s);
 
         if let Some('.') = self.peek_char() {
@@ -245,9 +244,8 @@ impl <'a> Tokens<'a> {
 
         s.map(|mut s| {
             s.shrink_to_fit();
-            s
+            TokenType::Number(s)
         })
-        .map(|s| TokenType::Number(s))
     }
 
     fn hex_literal(&mut self) -> Result<TokenType> {
