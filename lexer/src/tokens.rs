@@ -221,10 +221,11 @@ impl <'a> Tokens<'a> {
 
     fn digit(&mut self, first: char) -> Result<TokenType> {
         if let '0' = first {
-            match self.peek_char() {
-                Some('x') | Some('X') => return self.hex_literal(),
-                Some('o') | Some('O') => return self.octal_literal(),
-                Some('b') | Some('B') => return self.binary_literal(),
+            let next = self.peek_char();
+            match next {
+                Some('x') | Some('X') => return self.hex_literal(next.unwrap()),
+                Some('o') | Some('O') => return self.octal_literal(next.unwrap()),
+                Some('b') | Some('B') => return self.binary_literal(next.unwrap()),
                 _ => (),
             }
         }
@@ -248,27 +249,27 @@ impl <'a> Tokens<'a> {
         })
     }
 
-    fn hex_literal(&mut self) -> Result<TokenType> {
+    fn hex_literal(&mut self, next: char) -> Result<TokenType> {
         self.expect(|x| x.is_ascii_hexdigit()).map(|x| {
-            let mut s = format!("0{}", x);
+            let mut s = format!("0{}{}", next, x);
             self.do_while(|x| x.is_ascii_hexdigit(), |x| s.push(x));
             s.shrink_to_fit();
             TokenType::Number(s)
         })
     }
 
-    fn octal_literal(&mut self) -> Result<TokenType> {
+    fn octal_literal(&mut self, next: char) -> Result<TokenType> {
         self.expect(is_octal_digit).map(|x| {
-            let mut s = format!("0{}", x);
+            let mut s = format!("0{}{}", next, x);
             self.do_while(is_octal_digit, |x| s.push(x));
             s.shrink_to_fit();
             TokenType::Number(s)
         })
     }
 
-    fn binary_literal(&mut self) -> Result<TokenType> {
+    fn binary_literal(&mut self, next: char) -> Result<TokenType> {
         self.expect(is_binary_digit).map(|x| {
-            let mut s = format!("0{}", x);
+            let mut s = format!("0{}{}", next, x);
             self.do_while(is_binary_digit, |x| s.push(x));
             s.shrink_to_fit();
             TokenType::Number(s)
