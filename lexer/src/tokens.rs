@@ -236,9 +236,7 @@ impl <'a> Tokens<'a> {
 
         if let Some('.') = self.peek_char() {
             s = s.and_then(|mut s| self.decimal().map(|d| s.push_str(&d)).map(|_| s));
-        }
-
-        if let Some('e') | Some('E') = self.peek_char() {
+        } else if let Some('e') | Some('E') = self.peek_char() {
             let next = self.next_char().unwrap();
             s = s.and_then(|mut s| self.exponent(next).map(|e| s.push_str(&e)).map(|_| s));
         }
@@ -281,6 +279,16 @@ impl <'a> Tokens<'a> {
         self.expect(|c| c.is_ascii_digit()).map(|c| {
             s.push(c);
             self.do_while(|c| c.is_ascii_digit(), |c| s.push(c));
+        })
+        .and_then(|s| {
+            let next = self.peek_char();
+            match next {
+                Some('e') | Some('E') => self.exponent(next),
+                _                     => Ok("".to_string())
+            }
+        })
+        .map(|e| {
+            s.push_str(&e);
             s.shrink_to_fit();
             s
         })
