@@ -280,10 +280,12 @@ impl <'a> Tokens<'a> {
             s.push(c);
             self.do_while(|c| c.is_ascii_digit(), |c| s.push(c));
         })
-        .and_then(|s| {
-            let next = self.peek_char();
-            match next {
-                Some('e') | Some('E') => self.exponent(next),
+        .and_then(|_| {
+            match self.peek_char() {
+                Some('e') | Some('E') => {
+                    let next = self.next_char().unwrap();
+                    self.exponent(next)
+                },
                 _                     => Ok("".to_string())
             }
         })
@@ -351,13 +353,22 @@ impl <'a> Tokens<'a> {
                 Some((_, '\'')) if quote == QuoteStyle::Single => break,
                 Some((_, '"'))  if quote == QuoteStyle::Double => break,
                 Some((i, c))    if is_line_terminator(c)       => return Err(ErrorKind::UnexpectedChar(c, i).into()),
-                Some((_, '\\'))                                => return Err(ErrorKind::NotImplemented.into()),
-                None                                           => return Err(ErrorKind::UnexpectedEof.into()),
-                Some((_, c))                                   => s.push(c),
+                Some((_, '\\')) => {
+                    match self.escape_char() {
+                        Ok(x) => s.push_str(&x),
+                        Err(e) => return Err(e),
+                    }
+                },
+                None => return Err(ErrorKind::UnexpectedEof.into()),
+                Some((_, c)) => s.push(c),
             }
         }
         s.shrink_to_fit();
         Ok(TokenType::String(s, quote))
+    }
+
+    fn escape_char(&mut self) -> Result<String> {
+        Err(ErrorKind::NotImplemented.into())
     }
 
     // TODO escape sequences
