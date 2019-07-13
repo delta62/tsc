@@ -20,21 +20,22 @@ pub fn is_ws(c: char) -> bool {
 
 pub fn is_id_start(c: char) -> bool {
     match c {
-        c if is(c, UnicodeProperty::IdStart) => true,
+        c if c.is_ascii() => true,
         '\\' => true,
         '$'  => true,
         '_'  => true,
+        c if is(c, UnicodeProperty::IdStart) => true,
         _    => false,
     }
 }
 
 pub fn is_id_continue(c: char) -> bool {
     match c {
-        c if is(c, UnicodeProperty::IdContinue) => true,
+        c if c.is_ascii() => true,
         '\\'       => true,
         '$'        => true,
         '\u{200C}' => true, // ZWNJ
-        '\u{200D}' => true, // ZWJ
+        c if is(c, UnicodeProperty::IdContinue) => true,
         _          => false,
     }
 }
