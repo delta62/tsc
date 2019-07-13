@@ -353,11 +353,9 @@ impl <'a> Tokens<'a> {
                 Some((_, '\'')) if quote == QuoteStyle::Single => break,
                 Some((_, '"'))  if quote == QuoteStyle::Double => break,
                 Some((i, c))    if is_line_terminator(c)       => return Err(ErrorKind::UnexpectedChar(c, i).into()),
-                Some((_, '\\')) => {
-                    match self.escape_char() {
-                        Ok(x) => s.push_str(&x),
-                        Err(e) => return Err(e),
-                    }
+                Some((_, '\\')) => match self.escape_char() {
+                    Ok(x)  => s.push_str(&x),
+                    Err(e) => return Err(e),
                 },
                 None => return Err(ErrorKind::UnexpectedEof.into()),
                 Some((_, c)) => s.push(c),
@@ -376,22 +374,28 @@ impl <'a> Tokens<'a> {
     }
 
     fn identifier(&mut self, first: char) -> Result<TokenType> {
-        let mut s = first.to_string();
-        loop {
-            match self.peek_char() {
-                Some(x) if is_id_continue(x) => s.push(self.next_char().unwrap()),
-                Some('\\') => {
-                    self.input.next();
-                    match self.unicode_escape() {
+        match first {
+            '\\' => self.unicode_escape(),
+            c    => Ok(c.to_string()),
+        }.and_then(|mut s| {
+            while self.peek_char().map_or(false, is_id_continue) {
+                let next = self.next_char().unwrap();
+                match next {
+                    // <ZWNJ> <ZWJ>
+                    '\u{200C}' => match self.expect(|x| x == '\u{200D}') {
+                        Ok(_) => s.push_str("\u{200C}\u{200D}"),
+                        Err(e) => return Err(e)
+                    },
+                    '\\' => match self.unicode_escape() {
                         Ok(e) => s.push_str(&e),
                         Err(e) => return Err(e),
-                    }
-                },
-                Some(_) | None => break,
+                    },
+                    c => s.push(c)
+                }
             }
-        }
-        s.shrink_to_fit();
-        Ok(TokenType::Identifier(Identifier::Id(s)))
+            s.shrink_to_fit();
+            Ok(TokenType::Identifier(Identifier::Id(s)))
+        })
     }
 
     fn whitespace(&mut self, first: char) -> TokenType {
