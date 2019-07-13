@@ -371,14 +371,27 @@ impl <'a> Tokens<'a> {
         Err(ErrorKind::NotImplemented.into())
     }
 
-    // TODO escape sequences
-    fn identifier(&mut self, first: char) -> TokenType {
+    fn unicode_escape(&mut self) -> Result<String> {
+        self.expect(|x| x == 'u').map(|x| x.to_string())
+    }
+
+    fn identifier(&mut self, first: char) -> Result<TokenType> {
         let mut s = first.to_string();
-        while self.peek_char().map_or(false, is_id_continue) {
-            s.push(self.next_char().unwrap());
+        loop {
+            match self.peek_char() {
+                Some(x) if is_id_continue(x) => s.push(self.next_char().unwrap()),
+                Some('\\') => {
+                    self.input.next();
+                    match self.unicode_escape() {
+                        Ok(e) => s.push_str(&e),
+                        Err(e) => return Err(e),
+                    }
+                },
+                Some(_) | None => break,
+            }
         }
         s.shrink_to_fit();
-        TokenType::Identifier(Identifier::Id(s))
+        Ok(TokenType::Identifier(Identifier::Id(s)))
     }
 
     fn whitespace(&mut self, first: char) -> TokenType {
@@ -432,7 +445,7 @@ impl <'a> Iterator for Tokens<'a> {
                 (i, '"')  => token(i, self.string(QuoteStyle::Double)),
 
                 // Identifiers
-                (i, x) if is_id_start(x) => token(i, Ok(self.identifier(x))),
+                (i, x) if is_id_start(x) => token(i, self.identifier(x)),
 
                 // Whitespace
                 (i, x) if is_ws(x) => token(i, Ok(self.whitespace(x))),
