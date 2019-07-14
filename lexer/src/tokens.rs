@@ -28,6 +28,10 @@ impl <'a> Tokens<'a> {
         Err(ErrorKind::UnexpectedChar(c, idx).into())
     }
 
+    fn unexpected_eof() -> Result<()> {
+        Err(ErrorKind::UnexpectedEof.into())
+    }
+
     fn skip_yield(&mut self, result: TokenType) -> TokenType {
         self.input.next();
         result
@@ -50,6 +54,31 @@ impl <'a> Tokens<'a> {
     where P: Fn(char) -> bool, A: FnMut(char) {
         while self.peek_char().map_or(false, |x| predicate(x)) {
             action(self.next_char().unwrap());
+        }
+    }
+
+    fn do_times<P, A>(&mut self, times: u32, predicate: P, mut action: A) -> Result<()>
+    where P: Fn(char) -> bool, A: FnMut(char) {
+        for _ in 0..times {
+            match self.input.next() {
+                Some((_, c)) if predicate(c) => action(c),
+                Some((i, c)) => return Tokens::unexpected_char(i, c).map(|_| ()),
+                None         => return Tokens::unexpected_eof(),
+            }
+        }
+        Ok(())
+    }
+
+    fn do_required<P, A>(&mut self, predicate: P, mut action: A) -> Result<()>
+    where P: Fn(char) -> bool, A: FnMut(char) {
+        match self.input.next() {
+            Some((_, c)) if predicate(c) => {
+                action(c);
+                self.do_while(predicate, action);
+                Ok(())
+            },
+            Some((i, c)) => Err(ErrorKind::UnexpectedChar(c, i).into()),
+            None         => Err(ErrorKind::UnexpectedEof.into()),
         }
     }
 
@@ -370,7 +399,31 @@ impl <'a> Tokens<'a> {
     }
 
     fn unicode_escape(&mut self) -> Result<String> {
-        self.expect(|x| x == 'u').map(|x| x.to_string())
+        self.expect(|x| x == '\\')
+            .and_then(|_| self.expect(|x| x == 'u'))
+            .and_then(|_| {
+                let mut s = "\\u".to_string();
+                match self.input.next() {
+                    Some((_, '{')) => {
+                        s.push('{');
+                        self.do_required(|x| x.is_ascii_hexdigit(), |x| s.push(x))
+                            .and_then(|_| self.expect(|x| x == '}'))
+                            .map(|_| {
+                                s.push('}');
+                                s
+                            })
+                    },
+                    Some((_, c)) if c.is_ascii_hexdigit() => {
+                        self.do_times(4, |x| x.is_ascii_hexdigit(), |x| s.push(x)).map(|_| s)
+                    },
+                    Some((i, c)) => Err(ErrorKind::UnexpectedChar(c, i).into()),
+                    None         => Err(ErrorKind::UnexpectedEof.into()),
+                }
+            })
+            .map(|mut s| {
+                s.shrink_to_fit();
+                s
+            })
     }
 
     fn identifier(&mut self, first: char) -> Result<TokenType> {
