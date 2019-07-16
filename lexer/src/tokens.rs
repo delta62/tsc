@@ -1,7 +1,7 @@
 use std::iter::{Enumerate,Peekable};
 use std::str::Chars;
 
-use super::charclass::{is_binary_digit,is_id_continue,is_id_start,is_line_terminator,is_octal_digit,is_ws};
+use super::charclass::{is_binary_digit,is_escapable_char,is_id_continue,is_id_start,is_line_terminator,is_octal_digit,is_ws};
 use super::errors::*;
 use super::token::Token;
 use super::tokentype::{Identifier,QuoteStyle,TokenType};
@@ -395,7 +395,16 @@ impl <'a> Tokens<'a> {
     }
 
     fn escape_char(&mut self) -> Result<String> {
-        Err(ErrorKind::NotImplemented.into())
+        self.input.next()
+            .ok_or(ErrorKind::UnexpectedEof.into())
+            .and_then(|(i, c)| {
+                match c {
+                    x if is_escapable_char(x) => Ok(format!("\\{}", x)),
+                    'u'                       => self.unicode_escape(),
+                    'x'                       => self.hex_escape(),
+                    _                         => Err(ErrorKind::UnexpectedChar(c, i).into()),
+                }
+            })
     }
 
     fn unicode_escape(&mut self) -> Result<String> {
@@ -424,6 +433,10 @@ impl <'a> Tokens<'a> {
                 s.shrink_to_fit();
                 s
             })
+    }
+
+    fn hex_escape(&mut self) -> Result<String> {
+        Err(ErrorKind::NotImplemented.into())
     }
 
     fn identifier(&mut self, first: char) -> Result<TokenType> {
