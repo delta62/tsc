@@ -436,7 +436,12 @@ impl <'a> Tokens<'a> {
     }
 
     fn hex_escape(&mut self) -> Result<String> {
-        Err(ErrorKind::NotImplemented.into())
+        let mut s = "\\x".to_string();
+        self.do_times(2, |x| x.is_ascii_hexdigit(), |x| s.push(x))
+            .map(|_| {
+                s.shrink_to_fit();
+                s
+            })
     }
 
     fn identifier(&mut self, first: char) -> Result<TokenType> {
