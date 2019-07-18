@@ -4,7 +4,7 @@ use std::str::Chars;
 use super::charclass::{is_binary_digit,is_escapable_char,is_id_continue,is_id_start,is_line_terminator,is_octal_digit,is_ws};
 use super::errors::*;
 use super::token::Token;
-use super::tokentype::{Identifier,QuoteStyle,TokenType};
+use super::tokentype::{CommentStyle,Identifier,QuoteStyle,TokenType};
 
 pub struct Tokens<'a> {
     input: Peekable<Enumerate<Chars<'a>>>,
@@ -102,7 +102,18 @@ impl <'a> Tokens<'a> {
     }
 
     fn slash(&mut self) -> Result<TokenType> {
-        Err(ErrorKind::NotImplemented.into())
+        match self.peek_char() {
+            Some('/') => self.comment(CommentStyle::SingleLine),
+            _         => Err(ErrorKind::NotImplemented.into()),
+        }
+    }
+
+    fn comment(&mut self, style: CommentStyle) -> Result<TokenType> {
+        self.input.next();
+        let mut s = "//".to_string();
+        self.do_while(|x| !is_line_terminator(x), |x| s.push(x));
+        s.shrink_to_fit();
+        Ok(TokenType::Comment(s, style))
     }
 
     fn minus(&mut self) -> TokenType {
