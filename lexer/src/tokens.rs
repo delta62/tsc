@@ -110,10 +110,32 @@ impl <'a> Tokens<'a> {
 
     fn comment(&mut self, style: CommentStyle) -> Result<TokenType> {
         self.input.next();
-        let mut s = "//".to_string();
-        self.do_while(|x| !is_line_terminator(x), |x| s.push(x));
-        s.shrink_to_fit();
-        Ok(TokenType::Comment(s, style))
+        match style {
+            CommentStyle::SingleLine => {
+                let mut s = "//".to_string();
+                self.do_while(|x| !is_line_terminator(x), |x| s.push(x));
+                s.shrink_to_fit();
+                Ok(TokenType::Comment(s, style))
+            },
+            CommentStyle::MultiLine => {
+                let mut s = "/*".to_string();
+                loop {
+                    match self.next_char() {
+                        Some('*') => {
+                            s.push('*');
+                            if let Some('/') = self.peek_char() {
+                                self.input.next();
+                                s.push('/');
+                                break
+                            }
+                        },
+                        Some(c) => s.push(c),
+                        None => return Err(ErrorKind::UnexpectedEof.into())
+                    }
+                }
+                Ok(TokenType::Comment(s, style))
+            }
+        }
     }
 
     fn minus(&mut self) -> TokenType {
