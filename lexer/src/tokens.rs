@@ -24,11 +24,11 @@ impl <'a> Tokens<'a> {
         &self.diagnostics
     }
 
-    fn unexpected_char(idx: usize, c: char) -> Result<Token> {
+    fn unexpected_char<T>(idx: usize, c: char) -> Result<T> {
         Err(ErrorKind::UnexpectedChar(c, idx).into())
     }
 
-    fn unexpected_eof() -> Result<()> {
+    fn unexpected_eof<T>() -> Result<T> {
         Err(ErrorKind::UnexpectedEof.into())
     }
 
@@ -45,7 +45,7 @@ impl <'a> Tokens<'a> {
                 if predicate(x) {
                     Ok(x)
                 } else {
-                    Err(ErrorKind::UnexpectedChar(x, i).into())
+                    Tokens::unexpected_char(i, x)
                 }
             })
     }
@@ -62,7 +62,7 @@ impl <'a> Tokens<'a> {
         for _ in 0..times {
             match self.input.next() {
                 Some((_, c)) if predicate(c) => action(c),
-                Some((i, c)) => return Tokens::unexpected_char(i, c).map(|_| ()),
+                Some((i, c)) => return Tokens::unexpected_char(i, c),
                 None         => return Tokens::unexpected_eof(),
             }
         }
@@ -77,8 +77,8 @@ impl <'a> Tokens<'a> {
                 self.do_while(predicate, action);
                 Ok(())
             },
-            Some((i, c)) => Err(ErrorKind::UnexpectedChar(c, i).into()),
-            None         => Err(ErrorKind::UnexpectedEof.into()),
+            Some((i, c)) => Tokens::unexpected_char(i, c),
+            None         => Tokens::unexpected_eof(),
         }
     }
 
@@ -118,21 +118,24 @@ impl <'a> Tokens<'a> {
                 Ok(TokenType::Comment(s, style))
             },
             CommentStyle::MultiLine => {
-                let mut s = "/*".to_string();
+                let mut s = String::new();
                 loop {
                     match self.next_char() {
                         Some('*') => {
-                            s.push('*');
-                            if let Some('/') = self.peek_char() {
-                                self.input.next();
-                                s.push('/');
-                                break
+                            match self.next_char() {
+                                Some('/') => break,
+                                Some(c) => {
+                                    s.push('*');
+                                    s.push(c);
+                                },
+                                None => return Tokens::unexpected_eof()
                             }
                         },
                         Some(c) => s.push(c),
-                        None => return Err(ErrorKind::UnexpectedEof.into())
+                        None => return Tokens::unexpected_eof()
                     }
                 }
+                s.shrink_to_fit();
                 Ok(TokenType::Comment(s, style))
             }
         }
@@ -272,8 +275,8 @@ impl <'a> Tokens<'a> {
                 self.input.next();
                 match self.input.next() {
                     Some((_, '.')) => Ok(TokenType::Ellipsis),
-                    Some((i, c))   => Err(ErrorKind::UnexpectedChar(c, i).into()),
-                    None           => Err(ErrorKind::UnexpectedEof.into()),
+                    Some((i, c))   => Tokens::unexpected_char(i, c),
+                    None           => Tokens::unexpected_eof(),
                 }
             },
             Some(c) if c.is_ascii_hexdigit() => self.decimal().map(|x| TokenType::Number(x)),
@@ -386,14 +389,14 @@ impl <'a> Tokens<'a> {
                                 break
                             }
                         },
-                        None => return Err(ErrorKind::UnexpectedEof.into())
+                        None => return Tokens::unexpected_eof()
                     }
                 },
                 Some('\\') => {
                     s.push('\\');
                     match self.next_char() {
                         Some(c) => s.push(c),
-                        None    => return Err(ErrorKind::UnexpectedEof.into())
+                        None    => return Tokens::unexpected_eof()
                     }
                 },
                 Some('`') => {
@@ -401,7 +404,7 @@ impl <'a> Tokens<'a> {
                     break
                 },
                 Some(c) => s.push(c),
-                None => return Err(ErrorKind::UnexpectedEof.into()),
+                None => return Tokens::unexpected_eof()
             }
         }
         s.shrink_to_fit();
@@ -414,12 +417,12 @@ impl <'a> Tokens<'a> {
             match self.input.next() {
                 Some((_, '\'')) if quote == QuoteStyle::Single => break,
                 Some((_, '"'))  if quote == QuoteStyle::Double => break,
-                Some((i, c))    if is_line_terminator(c)       => return Err(ErrorKind::UnexpectedChar(c, i).into()),
+                Some((i, c))    if is_line_terminator(c)       => return Tokens::unexpected_char(i, c),
                 Some((_, '\\')) => match self.escape_char() {
                     Ok(x)  => s.push_str(&x),
                     Err(e) => return Err(e),
                 },
-                None => return Err(ErrorKind::UnexpectedEof.into()),
+                None => return Tokens::unexpected_eof(),
                 Some((_, c)) => s.push(c),
             }
         }
@@ -435,7 +438,7 @@ impl <'a> Tokens<'a> {
                     x if is_escapable_char(x) => Ok(format!("\\{}", x)),
                     'u'                       => self.unicode_escape(),
                     'x'                       => self.hex_escape(),
-                    _                         => Err(ErrorKind::UnexpectedChar(c, i).into()),
+                    _                         => Tokens::unexpected_char(i, c),
                 }
             })
     }
@@ -458,8 +461,8 @@ impl <'a> Tokens<'a> {
                     Some((_, c)) if c.is_ascii_hexdigit() => {
                         self.do_times(4, |x| x.is_ascii_hexdigit(), |x| s.push(x)).map(|_| s)
                     },
-                    Some((i, c)) => Err(ErrorKind::UnexpectedChar(c, i).into()),
-                    None         => Err(ErrorKind::UnexpectedEof.into()),
+                    Some((i, c)) => Tokens::unexpected_char(i, c),
+                    None         => Tokens::unexpected_eof(),
                 }
             })
             .map(|mut s| {
