@@ -580,3 +580,32 @@ impl <'a> Iterator for Tokens<'a> {
 fn token(location: usize, maybe: Result<TokenType>) -> Result<Token> {
     maybe.map(|x| Token::new(location, x))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use super::super::Lexer;
+
+    #[test]
+    fn lexes_integer() {
+        lex("123", TokenType::Number("123".to_string()));
+    }
+
+    fn lex(input: &str, expected: TokenType) {
+        let lexer = Lexer::with_str(input);
+        let tokens = lexer.into_iter();
+        tokens.next().map(|mut e| {
+            if e.typ != expected {
+                assert!(false);
+            }
+
+            match tokens.next() {
+                None => (),
+                _    => assert!(false),
+            }
+
+            return ()
+        });
+        assert!(false)
+    }
+}
