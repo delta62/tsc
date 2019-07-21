@@ -588,24 +588,50 @@ mod tests {
 
     #[test]
     fn lexes_integer() {
+        lex("0", TokenType::Number("0".to_string()));
         lex("123", TokenType::Number("123".to_string()));
+        lex("1e42", TokenType::Number("1e42".to_string()));
+        lex("1E42", TokenType::Number("1E42".to_string()));
+        lex("1E+42", TokenType::Number("1E+42".to_string()));
+        lex("1E-42", TokenType::Number("1E-42".to_string()));
+    }
+
+    #[test]
+    fn lexes_decimal() {
+        lex("0.12", TokenType::Number("0.12".to_string()));
+        lex("1.23", TokenType::Number("1.23".to_string()));
+        lex("1.23e42", TokenType::Number("1.23e42".to_string()));
+        lex("1.23E42", TokenType::Number("1.23E42".to_string()));
+        lex("1.23e+42", TokenType::Number("1.23e+42".to_string()));
+        lex("1.23e-42", TokenType::Number("1.23e-42".to_string()));
+    }
+
+    #[test]
+    fn lexes_binary_literal() {
+        let input = "0b1010";
+        lex(input, TokenType::Number(input.to_string()));
+    }
+
+    #[test]
+    fn lexes_octal_literal() {
+        let input = "0o12345670";
+        lex(input, TokenType::Number(input.to_string()));
+    }
+
+    #[test]
+    fn lexes_hex_literal() {
+        let input = "0x1234567890ABCDEF";
+        lex(input, TokenType::Number(input.to_string()));
     }
 
     fn lex(input: &str, expected: TokenType) {
-        let lexer = Lexer::with_str(input);
-        let tokens = lexer.into_iter();
-        tokens.next().map(|mut e| {
-            if e.typ != expected {
-                assert!(false);
-            }
-
-            match tokens.next() {
-                None => (),
-                _    => assert!(false),
-            }
-
-            return ()
-        });
-        assert!(false)
+        let mut tokens = Lexer::with_str(input).into_iter();
+        let first = tokens.next();
+        if first.is_some() {
+            assert_eq!(first.unwrap().typ, expected, "Token does not match expectation");
+        } else {
+            assert!(false, "Expected a token but none was given");
+        }
+        assert!(tokens.next().is_none(), "Expected exactly one token but got 2 or more");
     }
 }
