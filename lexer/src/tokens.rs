@@ -288,9 +288,9 @@ impl <'a> Tokens<'a> {
         if let '0' = first {
             let next = self.peek_char();
             match next {
-                Some('x') | Some('X') => return self.hex_literal(next.unwrap()),
-                Some('o') | Some('O') => return self.octal_literal(next.unwrap()),
-                Some('b') | Some('B') => return self.binary_literal(next.unwrap()),
+                Some('x') | Some('X') => return self.hex_literal(),
+                Some('o') | Some('O') => return self.octal_literal(),
+                Some('b') | Some('B') => return self.binary_literal(),
                 _ => (),
             }
         }
@@ -300,6 +300,7 @@ impl <'a> Tokens<'a> {
         let mut s = Ok(s);
 
         if let Some('.') = self.peek_char() {
+            self.input.next();
             s = s.and_then(|mut s| self.decimal().map(|d| s.push_str(&d)).map(|_| s));
         } else if let Some('e') | Some('E') = self.peek_char() {
             let next = self.next_char().unwrap();
@@ -312,7 +313,8 @@ impl <'a> Tokens<'a> {
         })
     }
 
-    fn hex_literal(&mut self, next: char) -> Result<TokenType> {
+    fn hex_literal(&mut self) -> Result<TokenType> {
+        let next = self.next_char().unwrap();
         self.expect(|x| x.is_ascii_hexdigit()).map(|x| {
             let mut s = format!("0{}{}", next, x);
             self.do_while(|x| x.is_ascii_hexdigit(), |x| s.push(x));
@@ -321,7 +323,8 @@ impl <'a> Tokens<'a> {
         })
     }
 
-    fn octal_literal(&mut self, next: char) -> Result<TokenType> {
+    fn octal_literal(&mut self) -> Result<TokenType> {
+        let next = self.next_char().unwrap();
         self.expect(is_octal_digit).map(|x| {
             let mut s = format!("0{}{}", next, x);
             self.do_while(is_octal_digit, |x| s.push(x));
@@ -330,7 +333,8 @@ impl <'a> Tokens<'a> {
         })
     }
 
-    fn binary_literal(&mut self, next: char) -> Result<TokenType> {
+    fn binary_literal(&mut self) -> Result<TokenType> {
+        let next = self.next_char().unwrap();
         self.expect(is_binary_digit).map(|x| {
             let mut s = format!("0{}{}", next, x);
             self.do_while(is_binary_digit, |x| s.push(x));
@@ -633,5 +637,6 @@ mod tests {
             assert!(false, "Expected a token but none was given");
         }
         assert!(tokens.next().is_none(), "Expected exactly one token but got 2 or more");
+        assert!(tokens.diagnostics().len() == 0, "Lexer finished with errors");
     }
 }
