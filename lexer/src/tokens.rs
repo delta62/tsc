@@ -628,6 +628,17 @@ mod tests {
         lex(input, TokenType::Number(input.to_string()));
     }
 
+    #[test]
+    fn lexes_string_literal() {
+        lex(r#""""#, TokenType::String("".to_string(), QuoteStyle::Double));
+        lex(r#""foo bar""#, TokenType::String("foo bar".to_string(), QuoteStyle::Double));
+        lex("\"\\\"\"", TokenType::String("\\\"".to_string(), QuoteStyle::Double));
+
+        lex("''", TokenType::String("".to_string(), QuoteStyle::Single));
+        lex("'foo bar'", TokenType::String("foo bar".to_string(), QuoteStyle::Single));
+        lex("'\\''", TokenType::String("\\'".to_string(), QuoteStyle::Single));
+    }
+
     fn lex(input: &str, expected: TokenType) {
         let mut tokens = Lexer::with_str(input).into_iter();
         let first = tokens.next();
