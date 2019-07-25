@@ -97,7 +97,7 @@ impl <'a> Tokens<'a> {
     }
 
     fn skip_then_peek(&mut self) -> Option<char> {
-        self.next();
+        self.input.next();
         self.peek_char()
     }
 
@@ -152,7 +152,7 @@ impl <'a> Tokens<'a> {
     fn plus(&mut self) -> TokenType {
         match self.peek_char() {
             Some('+') => self.skip_yield(TokenType::Increment),
-            Some('=') => self.skip_yield(TokenType::Plus),
+            Some('=') => self.skip_yield(TokenType::PlusEquals),
             _         => TokenType::Plus,
         }
     }
@@ -168,7 +168,9 @@ impl <'a> Tokens<'a> {
         match self.peek_char() {
             Some('<') => {
                 match self.skip_then_peek() {
-                    Some('=') => self.skip_yield(TokenType::LeftShiftEquals),
+                    Some('=') => {
+                        self.skip_yield(TokenType::LeftShiftEquals)
+                    },
                     _         => TokenType::LeftShift,
                 }
             },
@@ -637,6 +639,38 @@ mod tests {
         lex("''", TokenType::String("".to_string(), QuoteStyle::Single));
         lex("'foo bar'", TokenType::String("foo bar".to_string(), QuoteStyle::Single));
         lex("'\\''", TokenType::String("\\'".to_string(), QuoteStyle::Single));
+    }
+
+    #[test]
+    fn lexes_left_shift_tokens() {
+        lex("<", TokenType::LessThan);
+        lex("<=", TokenType::LessThanEqualTo);
+        lex("<<", TokenType::LeftShift);
+        lex("<<=", TokenType::LeftShiftEquals);
+    }
+
+    #[test]
+    fn lexes_right_shift_tokens() {
+        lex(">", TokenType::GreaterThan);
+        lex(">=", TokenType::GreaterThanEqualTo);
+        lex(">>", TokenType::RightShift);
+        lex(">>=", TokenType::RightShiftEquals);
+        lex(">>>", TokenType::TripleRightShift);
+        lex(">>>=", TokenType::TripleRightShiftEquals);
+    }
+
+    #[test]
+    fn lexes_plus_tokens() {
+        lex("+", TokenType::Plus);
+        lex("+=", TokenType::PlusEquals);
+        lex("++", TokenType::Increment);
+    }
+
+    #[test]
+    fn lexes_minus_tokens() {
+        lex("-", TokenType::Minus);
+        lex("-=", TokenType::MinusEquals);
+        lex("--", TokenType::Decrement);
     }
 
     fn lex(input: &str, expected: TokenType) {
