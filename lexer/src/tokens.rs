@@ -202,7 +202,7 @@ impl <'a> Tokens<'a> {
         match self.peek_char() {
             Some('*') => {
                 match self.skip_then_peek() {
-                    Some('*') => self.skip_yield(TokenType::PowerEquals),
+                    Some('=') => self.skip_yield(TokenType::PowerEquals),
                     _         => TokenType::Power,
                 }
             },
@@ -671,6 +671,63 @@ mod tests {
         lex("-", TokenType::Minus);
         lex("-=", TokenType::MinusEquals);
         lex("--", TokenType::Decrement);
+    }
+
+    #[test]
+    fn lexes_percent() {
+        lex("%", TokenType::Percent);
+        lex("%=", TokenType::PercentEquals);
+    }
+
+    #[test]
+    fn lexes_asterisk() {
+        lex("*", TokenType::Times);
+        lex("*=", TokenType::TimesEquals);
+        lex("**", TokenType::Power);
+        lex("**=", TokenType::PowerEquals);
+    }
+
+    #[test]
+    fn lexes_pipe() {
+        lex("|", TokenType::BinaryOr);
+        lex("|=", TokenType::BinaryOrEquals);
+        lex("||", TokenType::LogicalOr);
+    }
+
+    #[test]
+    fn lexes_ampersand() {
+        lex("&", TokenType::BinaryAnd);
+        lex("&=", TokenType::BinaryAndEquals);
+        lex("&&", TokenType::LogicalAnd);
+    }
+
+    #[test]
+    fn lexes_bang() {
+        lex("!", TokenType::Bang);
+        lex("!=", TokenType::NotEquals);
+        lex("!==", TokenType::NotTripleEquals);
+    }
+
+    #[test]
+    fn lexes_equals() {
+        lex("=", TokenType::Equals);
+        lex("=>", TokenType::Arrow);
+        lex("==", TokenType::DoubleEquals);
+        lex("===", TokenType::TripleEquals);
+    }
+
+    #[test]
+    fn lexes_caret() {
+        lex("^", TokenType::BinaryXor);
+        lex("^=", TokenType::BinaryXorEquals);
+    }
+
+    #[test]
+    fn lexes_period() {
+        lex(".", TokenType::Period);
+        // TODO
+        // lex_many("..", [ TokenType::Period, TokenType::Period ]);
+        lex("...", TokenType::Ellipsis);
     }
 
     fn lex(input: &str, expected: TokenType) {
