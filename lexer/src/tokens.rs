@@ -450,8 +450,7 @@ impl <'a> Tokens<'a> {
     }
 
     fn unicode_escape(&mut self) -> Result<String> {
-        self.expect(|x| x == '\\')
-            .and_then(|_| self.expect(|x| x == 'u'))
+        self.expect(|x| x == 'u')
             .and_then(|_| {
                 let mut s = "\\u".to_string();
                 match self.input.next() {
@@ -465,7 +464,8 @@ impl <'a> Tokens<'a> {
                             })
                     },
                     Some((_, c)) if c.is_ascii_hexdigit() => {
-                        self.do_times(4, |x| x.is_ascii_hexdigit(), |x| s.push(x)).map(|_| s)
+                        s.push(c);
+                        self.do_times(3, |x| x.is_ascii_hexdigit(), |x| s.push(x)).map(|_| s)
                     },
                     Some((i, c)) => Tokens::unexpected_char(i, c),
                     None         => Tokens::unexpected_eof(),
@@ -728,6 +728,14 @@ mod tests {
         // TODO
         // lex_many("..", [ TokenType::Period, TokenType::Period ]);
         lex("...", TokenType::Ellipsis);
+    }
+
+    #[test]
+    fn identifier() {
+        lex("foo", TokenType::Identifier(Identifier::Id("foo".to_string())));
+        lex("_foo", TokenType::Identifier(Identifier::Id("_foo".to_string())));
+        lex("$foo", TokenType::Identifier(Identifier::Id("$foo".to_string())));
+        lex("\\u0066oo", TokenType::Identifier(Identifier::Id("\\u0066oo".to_string())));
     }
 
     fn lex(input: &str, expected: TokenType) {
