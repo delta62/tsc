@@ -1,6 +1,6 @@
 use std::fmt;
 
-use super::reservedword::ReservedWord;
+use super::languageword::LanguageWord;
 
 #[derive(Debug,PartialEq)]
 pub enum TokenType {
@@ -153,14 +153,14 @@ impl fmt::Display for QuoteStyle {
 #[derive(Debug,PartialEq)]
 pub enum Identifier {
     Id(String),
-    Reserved(ReservedWord),
+    Special(LanguageWord),
 }
 
 impl fmt::Display for Identifier {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Identifier::Id(s) => write!(f, "{}", s),
-            Identifier::Reserved(rw) => write!(f, "{}", rw),
+            Identifier::Special(w) => write!(f, "{}", w),
         }
     }
 }

@@ -9,9 +9,9 @@ error_chain! {
 
         NotImplemented
 
-        UnexpectedToken(line: u32, col: u32) {
+        UnexpectedToken(location: usize) {
             description("unexpected token")
-            display("Unexpected token at {}:{}", line, col)
+            display("Unexpected token at {}", location)
         }
     }
 }

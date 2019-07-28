@@ -3,8 +3,8 @@ extern crate error_chain;
 extern crate unicode;
 
 mod charclass;
-mod errors;
-mod reservedword;
+pub mod errors;
+mod languageword;
 mod token;
 mod tokens;
 mod tokentype;

@@ -725,13 +725,11 @@ mod tests {
     #[test]
     fn lexes_period() {
         lex(".", TokenType::Period);
-        // TODO
-        // lex_many("..", [ TokenType::Period, TokenType::Period ]);
         lex("...", TokenType::Ellipsis);
     }
 
     #[test]
-    fn identifier() {
+    fn lexes_identifier() {
         lex("foo", TokenType::Identifier(Identifier::Id("foo".to_string())));
         lex("_foo", TokenType::Identifier(Identifier::Id("_foo".to_string())));
         lex("$foo", TokenType::Identifier(Identifier::Id("$foo".to_string())));
