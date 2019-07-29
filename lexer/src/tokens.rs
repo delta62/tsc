@@ -390,6 +390,7 @@ impl <'a> Tokens<'a> {
                     s.push('$');
                     match self.peek_char() {
                         Some(c) => {
+                            self.input.next();
                             s.push(c);
                             if c == '{' {
                                 break
@@ -406,7 +407,6 @@ impl <'a> Tokens<'a> {
                     }
                 },
                 Some('`') => {
-                    s.push('`');
                     break
                 },
                 Some(c) => s.push(c),
@@ -734,6 +734,13 @@ mod tests {
         lex("_foo", TokenType::Identifier(Identifier::Id("_foo".to_string())));
         lex("$foo", TokenType::Identifier(Identifier::Id("$foo".to_string())));
         lex("\\u0066oo", TokenType::Identifier(Identifier::Id("\\u0066oo".to_string())));
+    }
+
+    #[test]
+    fn lexes_template() {
+        lex("``", TokenType::Template("".to_string()));
+        lex("`foo`", TokenType::Template("foo".to_string()));
+        lex("`foo${", TokenType::Template("foo${".to_string()));
     }
 
     fn lex(input: &str, expected: TokenType) {
