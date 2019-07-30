@@ -639,6 +639,9 @@ mod tests {
         lex("''", TokenType::String("".to_string(), QuoteStyle::Single));
         lex("'foo bar'", TokenType::String("foo bar".to_string(), QuoteStyle::Single));
         lex("'\\''", TokenType::String("\\'".to_string(), QuoteStyle::Single));
+
+        lex("'‽'", TokenType::String("‽".to_string(), QuoteStyle::Single));
+        lex("'🖤'", TokenType::String("🖤".to_string(), QuoteStyle::Single));
     }
 
     #[test]
