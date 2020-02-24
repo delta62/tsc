@@ -437,14 +437,18 @@ impl <'a> Tokens<'a> {
     }
 
     fn escape_char(&mut self) -> Result<String> {
-        self.input.next()
+        self.input.peek()
             .ok_or(ErrorKind::UnexpectedEof.into())
+            .map(|(i, c)| (*i, *c))
             .and_then(|(i, c)| {
                 match c {
-                    x if is_escapable_char(x) => Ok(format!("\\{}", x)),
-                    'u'                       => self.unicode_escape(),
-                    'x'                       => self.hex_escape(),
-                    _                         => Tokens::unexpected_char(i, c),
+                    x if is_escapable_char(x) => {
+                        self.input.next();
+                        Ok(format!("\\{}", x))
+                    },
+                    'u' => self.unicode_escape(),
+                    'x' => self.hex_escape(),
+                    _   => Tokens::unexpected_char(i, c),
                 }
             })
     }
@@ -640,6 +644,8 @@ mod tests {
         lex("'foo bar'", TokenType::String("foo bar".to_string(), QuoteStyle::Single));
         lex("'\\''", TokenType::String("\\'".to_string(), QuoteStyle::Single));
 
+        lex("'\\u203D'", TokenType::String("\\u203D".to_string(), QuoteStyle::Single));
+        lex("'\\u{203D}'", TokenType::String("\\u{203D}".to_string(), QuoteStyle::Single));
         lex("'‽'", TokenType::String("‽".to_string(), QuoteStyle::Single));
         lex("'🖤'", TokenType::String("🖤".to_string(), QuoteStyle::Single));
     }
@@ -748,13 +754,19 @@ mod tests {
 
     fn lex(input: &str, expected: TokenType) {
         let mut tokens = Lexer::with_str(input).into_iter();
+
+        let diagnostics = tokens.diagnostics();
+        if diagnostics.len() > 0 {
+            panic!(format!("Lex errors were encountered. {:?}", diagnostics.get(0)));
+        }
+
         let first = tokens.next();
         if first.is_some() {
             assert_eq!(first.unwrap().typ, expected, "Token does not match expectation");
         } else {
             assert!(false, "Expected a token but none was given");
         }
+
         assert!(tokens.next().is_none(), "Expected exactly one token but got 2 or more");
-        assert!(tokens.diagnostics().len() == 0, "Lexer finished with errors");
     }
 }

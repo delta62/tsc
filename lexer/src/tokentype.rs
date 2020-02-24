@@ -123,7 +123,7 @@ impl fmt::Display for TokenType {
             TokenType::Semicolon => write!(f, ";"),
             TokenType::String(s, QuoteStyle::Double) => write!(f, r#""{}""#, s),
             TokenType::String(s, QuoteStyle::Single) => write!(f, "'{}'", s),
-            TokenType::Template(s) => write!(f, "{}", s),
+            TokenType::Template(s) => write!(f, "`{}`", s),
             TokenType::Tilde => write!(f, "~"),
             TokenType::TimesEquals => write!(f, "*="),
             TokenType::Times => write!(f, "*"),
