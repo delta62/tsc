@@ -29,3 +29,18 @@ fn is_id_continue(c: char) -> bool {
     }
     RE.is_match(&c.to_string())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn omits_whitespace_from_id_start() {
+        assert!(!is_id_start(' '));
+    }
+
+    #[test]
+    fn omits_whitespace_from_id_continue() {
+        assert!(!is_id_continue(' '));
+    }
+}

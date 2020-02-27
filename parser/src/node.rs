@@ -1,5 +1,6 @@
 pub enum Node {
-    Script(Vec<Node>),
+    BindingIdentifier(String),
     DebuggerStatement,
     EmptyStatement,
+    Script(Vec<Node>),
 }

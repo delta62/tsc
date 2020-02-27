@@ -1,10 +1,22 @@
+use std::collections::HashMap;
 use std::iter::{Enumerate,Peekable};
 use std::str::Chars;
 
 use super::charclass::{is_binary_digit,is_escapable_char,is_id_continue,is_id_start,is_line_terminator,is_octal_digit,is_ws};
 use super::errors::*;
+use super::languageword::LanguageWord;
 use super::token::Token;
 use super::tokentype::{CommentStyle,Identifier,QuoteStyle,TokenType};
+
+lazy_static! {
+    static ref RWORDS: HashMap<&'static str, LanguageWord> = {
+        let mut m = HashMap::new();
+        m.insert("const", LanguageWord::Const);
+        m.insert("let", LanguageWord::Let);
+        m.insert("var", LanguageWord::Var);
+        m
+    };
+}
 
 pub struct Tokens<'a> {
     input: Peekable<Enumerate<Chars<'a>>>,
@@ -511,7 +523,13 @@ impl <'a> Tokens<'a> {
                 }
             }
             s.shrink_to_fit();
-            Ok(TokenType::Identifier(Identifier::Id(s)))
+
+            if RWORDS.contains_key(s.as_str()) {
+                let rword = RWORDS.get(s.as_str()).unwrap();
+                Ok(TokenType::Identifier(Identifier::Special(*rword)))
+            } else {
+                Ok(TokenType::Identifier(Identifier::Id(s)))
+            }
         })
     }
 
@@ -579,6 +597,9 @@ impl <'a> Iterator for Tokens<'a> {
             });
 
             match t {
+                // Insanely hacky way to omit whitespace
+                Some(Ok(Token{ typ: TokenType::WhiteSpace(_), .. })) => (),
+
                 Some(Ok(x))  => return Some(x),
                 Some(Err(e)) => self.diagnostics.push(e),
                 None         => return None,
@@ -750,6 +771,13 @@ mod tests {
         lex("``", TokenType::Template("".to_string()));
         lex("`foo`", TokenType::Template("foo".to_string()));
         lex("`foo${", TokenType::Template("foo${".to_string()));
+    }
+
+    #[test]
+    fn lexes_keywords() {
+        lex("const", TokenType::Identifier(Identifier::Special(LanguageWord::Const)));
+        lex("let", TokenType::Identifier(Identifier::Special(LanguageWord::Let)));
+        lex("var", TokenType::Identifier(Identifier::Special(LanguageWord::Var)));
     }
 
     fn lex(input: &str, expected: TokenType) {

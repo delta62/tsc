@@ -5,4 +5,5 @@ authors = ["Sam Noedel <sam.noedel@gmail.com>"]
 
 [dependencies]
 error-chain = "^0.12.1"
+lazy_static = "^1.4.0"
 unicode = { path = "../unicode" }

@@ -20,7 +20,7 @@ pub fn is_ws(c: char) -> bool {
 
 pub fn is_id_start(c: char) -> bool {
     match c {
-        c if c.is_ascii() => true,
+        c if c.is_ascii_alphanumeric() => true,
         '\\' => true,
         '$'  => true,
         '_'  => true,
@@ -31,7 +31,7 @@ pub fn is_id_start(c: char) -> bool {
 
 pub fn is_id_continue(c: char) -> bool {
     match c {
-        c if c.is_ascii() => true,
+        c if c.is_ascii_alphanumeric() => true,
         '\\'       => true,
         '$'        => true,
         '\u{200C}' => true, // ZWNJ

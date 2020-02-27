@@ -1,5 +1,7 @@
 #[macro_use]
 extern crate error_chain;
+#[macro_use]
+extern crate lazy_static;
 extern crate unicode;
 
 mod charclass;
@@ -9,9 +11,10 @@ mod token;
 mod tokens;
 mod tokentype;
 
+pub use self::languageword::LanguageWord;
 pub use self::token::Token;
 pub use self::tokens::Tokens;
-pub use self::tokentype::TokenType;
+pub use self::tokentype::{Identifier,TokenType};
 
 pub struct Lexer<'a> {
     input: &'a str,

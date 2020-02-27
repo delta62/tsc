@@ -1,6 +1,6 @@
 use std::fmt;
 
-#[derive(Debug,PartialEq)]
+#[derive(Copy,Clone,Debug,PartialEq)]
 pub enum LanguageWord {
     // Keyword
     Async,
